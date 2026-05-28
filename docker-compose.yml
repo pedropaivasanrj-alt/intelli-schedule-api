@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: intelli_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: intelli_schedule
+    ports:
+      - "5434:5432" # Usando a 5434
+    volumes:
+      - intelli_pgdata:/var/lib/postgresql/data
+
+volumes:
+  intelli_pgdata:
