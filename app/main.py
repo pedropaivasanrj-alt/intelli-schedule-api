@@ -18,6 +18,7 @@ from app.routers import (
     disponibilidades_router,
     alunos_router,
     usuarios_router,
+    agendamentos_router
 )
 
 Base.metadata.create_all(bind=engine)
@@ -31,6 +32,7 @@ app.include_router(reunioes_router.router)
 app.include_router(disponibilidades_router.router)
 app.include_router(alunos_router.router)
 app.include_router(usuarios_router.router)
+app.include_router(agendamentos_router.router)
 
 @app.get("/")
 def health_check():
