@@ -421,3 +421,78 @@ def test_vincular_aluno_a_projeto():
 
     client.delete(f"/api/v1/projetos/{projeto_id}")
     client.delete(f"/api/v1/alunos/{aluno_id}")
+def test_gerar_agendamento_automatico():
+    email_professor = f"prof_agendamento_{uuid4().hex[:8]}@teste.com"
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        json={
+            "nome": "Professor Agendamento",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
+
+    response_disponibilidade = client.post(
+        "/api/v1/disponibilidades/",
+        json={
+            "professor_id": professor_id,
+            "data": "2026-06-20",
+            "hora_inicio": "08:00:00",
+            "hora_fim": "10:00:00"
+        }
+    )
+
+    assert response_disponibilidade.status_code == 200
+    disponibilidade_id = response_disponibilidade.json()["id"]
+
+    response_projeto_1 = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto Agendamento 1",
+            "alunos_envolvidos": "Aluno A",
+            "descricao_foco": "Teste de agendamento automático"
+        }
+    )
+
+    response_projeto_2 = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto Agendamento 2",
+            "alunos_envolvidos": "Aluno B",
+            "descricao_foco": "Teste de agendamento automático"
+        }
+    )
+
+    assert response_projeto_1.status_code == 200
+    assert response_projeto_2.status_code == 200
+
+    projeto_1_id = response_projeto_1.json()["id"]
+    projeto_2_id = response_projeto_2.json()["id"]
+
+    response_agendamento = client.post("/api/v1/agendamentos/gerar")
+
+    assert response_agendamento.status_code == 200
+
+    resultado = response_agendamento.json()
+
+    agendados_teste = [
+        item for item in resultado["agendados"]
+        if item["projeto_id"] in [projeto_1_id, projeto_2_id]
+    ]
+
+    assert len(agendados_teste) == 2
+
+    reuniao_ids = [item["reuniao_id"] for item in agendados_teste]
+
+    for reuniao_id in reuniao_ids:
+        client.delete(f"/api/v1/reunioes/{reuniao_id}")
+
+    client.delete(f"/api/v1/disponibilidades/{disponibilidade_id}")
+    client.delete(f"/api/v1/projetos/{projeto_1_id}")
+    client.delete(f"/api/v1/projetos/{projeto_2_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")

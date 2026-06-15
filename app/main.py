@@ -18,7 +18,7 @@ from app.routers import (
     disponibilidades_router,
     alunos_router,
     usuarios_router,
-    agendamentos_router
+    agendamentos_router,
 )
 
 Base.metadata.create_all(bind=engine)
