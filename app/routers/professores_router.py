@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.professor import Professor
+from app.models.usuario import Usuario
 from app.schemas.professor_schema import ProfessorCreate, ProfessorResponse
 
 router = APIRouter(
@@ -28,11 +29,43 @@ def criar_professor(
             detail="Já existe um professor cadastrado com este e-mail"
         )
 
+    if professor.usuario_id:
+        usuario = (
+            db.query(Usuario)
+            .filter(Usuario.id == professor.usuario_id)
+            .first()
+        )
+
+        if not usuario:
+            raise HTTPException(
+                status_code=404,
+                detail="Usuário não encontrado"
+            )
+
+        if usuario.papel != "professor":
+            raise HTTPException(
+                status_code=400,
+                detail="O usuário vinculado precisa ter papel de professor"
+            )
+
+        vinculo_existente = (
+            db.query(Professor)
+            .filter(Professor.usuario_id == professor.usuario_id)
+            .first()
+        )
+
+        if vinculo_existente:
+            raise HTTPException(
+                status_code=400,
+                detail="Este usuário já está vinculado a um professor"
+            )
+
     novo_professor = Professor(
         nome=professor.nome,
         email=professor.email,
         departamento=professor.departamento,
-        ativo=professor.ativo
+        ativo=professor.ativo,
+        usuario_id=professor.usuario_id
     )
 
     db.add(novo_professor)
@@ -44,8 +77,7 @@ def criar_professor(
 
 @router.get("/", response_model=list[ProfessorResponse])
 def listar_professores(db: Session = Depends(get_db)):
-    professores = db.query(Professor).all()
-    return professores
+    return db.query(Professor).all()
 
 
 @router.get("/{professor_id}", response_model=ProfessorResponse)

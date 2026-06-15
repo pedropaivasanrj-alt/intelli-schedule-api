@@ -8,6 +8,7 @@ class AlunoBase(BaseModel):
     matricula: Optional[str] = None
     curso: Optional[str] = None
     ativo: bool = True
+    usuario_id: Optional[int] = None
 
 
 class AlunoCreate(AlunoBase):

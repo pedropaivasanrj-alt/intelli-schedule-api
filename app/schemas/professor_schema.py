@@ -7,6 +7,7 @@ class ProfessorBase(BaseModel):
     email: EmailStr
     departamento: Optional[str] = None
     ativo: bool = True
+    usuario_id: Optional[int] = None
 
 
 class ProfessorCreate(ProfessorBase):
