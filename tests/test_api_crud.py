@@ -253,3 +253,43 @@ def test_upload_salvar_projetos():
 
     assert response.status_code == 200
     assert "Sucesso" in response.json()["mensagem"]
+def test_crud_alunos():
+    email_teste = f"aluno_{uuid4().hex[:8]}@teste.com"
+    matricula_teste = f"MAT-{uuid4().hex[:8]}"
+
+    payload = {
+        "nome": "Aluno Teste",
+        "email": email_teste,
+        "matricula": matricula_teste,
+        "curso": "Ciência da Computação",
+        "ativo": True
+    }
+
+    response_create = client.post(
+        "/api/v1/alunos/",
+        json=payload
+    )
+
+    assert response_create.status_code == 200
+
+    aluno = response_create.json()
+
+    assert aluno["nome"] == payload["nome"]
+    assert aluno["email"] == payload["email"]
+    assert aluno["matricula"] == payload["matricula"]
+    assert aluno["curso"] == payload["curso"]
+
+    aluno_id = aluno["id"]
+
+    response_get = client.get(f"/api/v1/alunos/{aluno_id}")
+
+    assert response_get.status_code == 200
+    assert response_get.json()["id"] == aluno_id
+
+    response_list = client.get("/api/v1/alunos/")
+
+    assert response_list.status_code == 200
+
+    response_delete = client.delete(f"/api/v1/alunos/{aluno_id}")
+
+    assert response_delete.status_code == 200
