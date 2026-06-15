@@ -29,7 +29,8 @@ def horario_tem_conflito(
 
 
 def gerar_agendamentos_automaticos(db: Session):
-    projetos = db.query(Projeto).all()
+    projetos = db.query(Projeto).order_by(Projeto.id).all()
+
     disponibilidades = (
         db.query(Disponibilidade)
         .join(Professor)
@@ -44,6 +45,8 @@ def gerar_agendamentos_automaticos(db: Session):
     agendados = []
     nao_agendados = []
 
+    duracao = timedelta(minutes=DURACAO_PADRAO_REUNIAO_MINUTOS)
+
     for projeto in projetos:
         reuniao_existente = (
             db.query(Reuniao)
@@ -57,56 +60,57 @@ def gerar_agendamentos_automaticos(db: Session):
         projeto_agendado = False
 
         for disponibilidade in disponibilidades:
-            inicio = datetime.combine(
+            inicio_disponibilidade = datetime.combine(
                 disponibilidade.data,
                 disponibilidade.hora_inicio
             )
 
-            fim = inicio + timedelta(
-                minutes=DURACAO_PADRAO_REUNIAO_MINUTOS
-            )
-
-            limite_fim = datetime.combine(
+            fim_disponibilidade = datetime.combine(
                 disponibilidade.data,
                 disponibilidade.hora_fim
             )
 
-            if fim > limite_fim:
-                continue
+            inicio_atual = inicio_disponibilidade
 
-            if horario_tem_conflito(
-                db=db,
-                professor_id=disponibilidade.professor_id,
-                inicio=inicio,
-                fim=fim
-            ):
-                continue
+            while inicio_atual + duracao <= fim_disponibilidade:
+                fim_atual = inicio_atual + duracao
 
-            nova_reuniao = Reuniao(
-                projeto_id=projeto.id,
-                professor_id=disponibilidade.professor_id,
-                ciclo_avaliacao="Agendamento automático",
-                data_hora_inicio=inicio,
-                data_hora_fim=fim,
-                status="Agendado"
-            )
+                if not horario_tem_conflito(
+                    db=db,
+                    professor_id=disponibilidade.professor_id,
+                    inicio=inicio_atual,
+                    fim=fim_atual
+                ):
+                    nova_reuniao = Reuniao(
+                        projeto_id=projeto.id,
+                        professor_id=disponibilidade.professor_id,
+                        ciclo_avaliacao="Agendamento automático",
+                        data_hora_inicio=inicio_atual,
+                        data_hora_fim=fim_atual,
+                        status="Agendado"
+                    )
 
-            db.add(nova_reuniao)
-            db.commit()
-            db.refresh(nova_reuniao)
+                    db.add(nova_reuniao)
+                    db.commit()
+                    db.refresh(nova_reuniao)
 
-            agendados.append({
-                "projeto_id": projeto.id,
-                "projeto_nome": projeto.nome,
-                "professor_id": disponibilidade.professor_id,
-                "reuniao_id": nova_reuniao.id,
-                "inicio": nova_reuniao.data_hora_inicio,
-                "fim": nova_reuniao.data_hora_fim,
-                "status": nova_reuniao.status
-            })
+                    agendados.append({
+                        "projeto_id": projeto.id,
+                        "projeto_nome": projeto.nome,
+                        "professor_id": disponibilidade.professor_id,
+                        "reuniao_id": nova_reuniao.id,
+                        "inicio": nova_reuniao.data_hora_inicio,
+                        "fim": nova_reuniao.data_hora_fim,
+                        "status": nova_reuniao.status
+                    })
 
-            projeto_agendado = True
-            break
+                    projeto_agendado = True
+                    break
+
+                inicio_atual += duracao
+
+            if projeto_agendado:
+                break
 
         if not projeto_agendado:
             nao_agendados.append({
@@ -121,6 +125,8 @@ def gerar_agendamentos_automaticos(db: Session):
         "agendados": agendados,
         "nao_agendados": nao_agendados
     }
+
+
 def formatar_reuniao(db: Session, reuniao: Reuniao):
     professor = (
         db.query(Professor)

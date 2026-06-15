@@ -443,7 +443,7 @@ def test_gerar_agendamento_automatico():
             "professor_id": professor_id,
             "data": "2026-06-20",
             "hora_inicio": "08:00:00",
-            "hora_fim": "10:00:00"
+            "hora_fim": "18:00:00"
         }
     )
 
@@ -496,7 +496,7 @@ def test_gerar_agendamento_automatico():
     client.delete(f"/api/v1/projetos/{projeto_1_id}")
     client.delete(f"/api/v1/projetos/{projeto_2_id}")
     client.delete(f"/api/v1/professores/{professor_id}")
-
+    
 def test_visualizar_agenda_completa():
     response = client.get("/api/v1/agendamentos/agenda")
 
