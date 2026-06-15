@@ -15,6 +15,10 @@ class ReuniaoCreate(ReuniaoBase):
     pass
 
 
+class ReuniaoStatusUpdate(BaseModel):
+    status: str
+
+
 class ReuniaoResponse(ReuniaoBase):
     id: int
 
