@@ -293,3 +293,76 @@ def test_crud_alunos():
     response_delete = client.delete(f"/api/v1/alunos/{aluno_id}")
 
     assert response_delete.status_code == 200
+def test_crud_usuarios_e_admin_unico():
+    email_admin = f"admin_{uuid4().hex[:8]}@teste.com"
+    email_coord = f"coord_{uuid4().hex[:8]}@teste.com"
+
+    admin_payload = {
+        "nome": "Administrador Teste",
+        "email": email_admin,
+        "senha": "123456",
+        "papel": "admin",
+        "ativo": True
+    }
+
+    response_admin = client.post(
+        "/api/v1/usuarios/",
+        json=admin_payload
+    )
+
+    assert response_admin.status_code == 200
+
+    admin = response_admin.json()
+    assert admin["email"] == email_admin
+    assert admin["papel"] == "admin"
+    assert "senha" not in admin
+    assert "senha_hash" not in admin
+
+    admin_id = admin["id"]
+
+    segundo_admin_payload = {
+        "nome": "Segundo Admin",
+        "email": f"segundo_admin_{uuid4().hex[:8]}@teste.com",
+        "senha": "123456",
+        "papel": "admin",
+        "ativo": True
+    }
+
+    response_segundo_admin = client.post(
+        "/api/v1/usuarios/",
+        json=segundo_admin_payload
+    )
+
+    assert response_segundo_admin.status_code == 400
+
+    coordenador_payload = {
+        "nome": "Coordenador Teste",
+        "email": email_coord,
+        "senha": "123456",
+        "papel": "coordenador",
+        "ativo": True
+    }
+
+    response_coord = client.post(
+        "/api/v1/usuarios/",
+        json=coordenador_payload
+    )
+
+    assert response_coord.status_code == 200
+
+    coordenador = response_coord.json()
+    assert coordenador["papel"] == "coordenador"
+
+    coordenador_id = coordenador["id"]
+
+    response_list = client.get("/api/v1/usuarios/")
+    assert response_list.status_code == 200
+
+    response_get = client.get(f"/api/v1/usuarios/{admin_id}")
+    assert response_get.status_code == 200
+
+    response_delete_coord = client.delete(f"/api/v1/usuarios/{coordenador_id}")
+    assert response_delete_coord.status_code == 200
+
+    response_delete_admin = client.delete(f"/api/v1/usuarios/{admin_id}")
+    assert response_delete_admin.status_code == 200

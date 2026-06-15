@@ -6,6 +6,7 @@ from app.models.disponibilidade import Disponibilidade
 from app.models.projeto import Projeto
 from app.models.reuniao import Reuniao
 from app.models.aluno import Aluno
+from app.models.usuario import Usuario
 
 from app.routers import (
     upload_router,
@@ -14,6 +15,7 @@ from app.routers import (
     reunioes_router,
     disponibilidades_router,
     alunos_router,
+    usuarios_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -26,6 +28,7 @@ app.include_router(projetos_router.router)
 app.include_router(reunioes_router.router)
 app.include_router(disponibilidades_router.router)
 app.include_router(alunos_router.router)
+app.include_router(usuarios_router.router)
 
 @app.get("/")
 def health_check():
