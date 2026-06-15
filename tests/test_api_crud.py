@@ -366,3 +366,58 @@ def test_crud_usuarios_e_admin_unico():
 
     response_delete_admin = client.delete(f"/api/v1/usuarios/{admin_id}")
     assert response_delete_admin.status_code == 200
+
+def test_vincular_aluno_a_projeto():
+    email_aluno = f"aluno_projeto_{uuid4().hex[:8]}@teste.com"
+    matricula = f"MAT-PROJ-{uuid4().hex[:8]}"
+
+    response_aluno = client.post(
+        "/api/v1/alunos/",
+        json={
+            "nome": "Aluno Projeto Teste",
+            "email": email_aluno,
+            "matricula": matricula,
+            "curso": "Ciência da Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_aluno.status_code == 200
+    aluno_id = response_aluno.json()["id"]
+
+    response_projeto = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto com Aluno Vinculado",
+            "alunos_envolvidos": "Aluno Projeto Teste",
+            "descricao_foco": "Teste de vínculo real entre aluno e projeto"
+        }
+    )
+
+    assert response_projeto.status_code == 200
+    projeto_id = response_projeto.json()["id"]
+
+    response_vinculo = client.post(
+        f"/api/v1/projetos/{projeto_id}/alunos/{aluno_id}"
+    )
+
+    assert response_vinculo.status_code == 200
+
+    response_lista = client.get(
+        f"/api/v1/projetos/{projeto_id}/alunos"
+    )
+
+    assert response_lista.status_code == 200
+    alunos = response_lista.json()
+
+    assert len(alunos) >= 1
+    assert alunos[0]["id"] == aluno_id
+
+    response_remover = client.delete(
+        f"/api/v1/projetos/{projeto_id}/alunos/{aluno_id}"
+    )
+
+    assert response_remover.status_code == 200
+
+    client.delete(f"/api/v1/projetos/{projeto_id}")
+    client.delete(f"/api/v1/alunos/{aluno_id}")

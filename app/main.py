@@ -7,6 +7,8 @@ from app.models.projeto import Projeto
 from app.models.reuniao import Reuniao
 from app.models.aluno import Aluno
 from app.models.usuario import Usuario
+from app.models.projeto_aluno import projeto_alunos
+
 
 from app.routers import (
     upload_router,

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.projeto import Projeto
+from app.models.aluno import Aluno
 from app.schemas.projeto_schema import ProjetoCreate, ProjetoResponse
 
 router = APIRouter(
@@ -31,8 +32,7 @@ def criar_projeto(
 
 @router.get("/", response_model=list[ProjetoResponse])
 def listar_projetos(db: Session = Depends(get_db)):
-    projetos = db.query(Projeto).all()
-    return projetos
+    return db.query(Projeto).all()
 
 
 @router.get("/{projeto_id}", response_model=ProjetoResponse)
@@ -76,3 +76,110 @@ def deletar_projeto(
     db.commit()
 
     return {"message": "Projeto deletado com sucesso"}
+
+
+@router.post("/{projeto_id}/alunos/{aluno_id}", response_model=ProjetoResponse)
+def vincular_aluno_ao_projeto(
+    projeto_id: int,
+    aluno_id: int,
+    db: Session = Depends(get_db)
+):
+    projeto = (
+        db.query(Projeto)
+        .filter(Projeto.id == projeto_id)
+        .first()
+    )
+
+    if not projeto:
+        raise HTTPException(
+            status_code=404,
+            detail="Projeto não encontrado"
+        )
+
+    aluno = (
+        db.query(Aluno)
+        .filter(Aluno.id == aluno_id)
+        .first()
+    )
+
+    if not aluno:
+        raise HTTPException(
+            status_code=404,
+            detail="Aluno não encontrado"
+        )
+
+    if aluno in projeto.alunos:
+        raise HTTPException(
+            status_code=400,
+            detail="Aluno já está vinculado a este projeto"
+        )
+
+    projeto.alunos.append(aluno)
+
+    db.commit()
+    db.refresh(projeto)
+
+    return projeto
+
+
+@router.get("/{projeto_id}/alunos")
+def listar_alunos_do_projeto(
+    projeto_id: int,
+    db: Session = Depends(get_db)
+):
+    projeto = (
+        db.query(Projeto)
+        .filter(Projeto.id == projeto_id)
+        .first()
+    )
+
+    if not projeto:
+        raise HTTPException(
+            status_code=404,
+            detail="Projeto não encontrado"
+        )
+
+    return projeto.alunos
+
+
+@router.delete("/{projeto_id}/alunos/{aluno_id}")
+def remover_aluno_do_projeto(
+    projeto_id: int,
+    aluno_id: int,
+    db: Session = Depends(get_db)
+):
+    projeto = (
+        db.query(Projeto)
+        .filter(Projeto.id == projeto_id)
+        .first()
+    )
+
+    if not projeto:
+        raise HTTPException(
+            status_code=404,
+            detail="Projeto não encontrado"
+        )
+
+    aluno = (
+        db.query(Aluno)
+        .filter(Aluno.id == aluno_id)
+        .first()
+    )
+
+    if not aluno:
+        raise HTTPException(
+            status_code=404,
+            detail="Aluno não encontrado"
+        )
+
+    if aluno not in projeto.alunos:
+        raise HTTPException(
+            status_code=400,
+            detail="Aluno não está vinculado a este projeto"
+        )
+
+    projeto.alunos.remove(aluno)
+
+    db.commit()
+
+    return {"message": "Aluno removido do projeto com sucesso"}

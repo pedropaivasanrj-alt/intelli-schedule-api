@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.models.projeto_aluno import projeto_alunos
 
 
 class Aluno(Base):
@@ -22,3 +23,8 @@ class Aluno(Base):
     ativo = Column(Boolean, default=True)
 
     usuario = relationship("Usuario", back_populates="aluno")
+    projetos = relationship(
+        "Projeto",
+        secondary=projeto_alunos,
+        back_populates="alunos"
+    )
