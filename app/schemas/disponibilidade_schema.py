@@ -1,11 +1,12 @@
+from datetime import date, time
 from pydantic import BaseModel, ConfigDict
 
 
 class DisponibilidadeBase(BaseModel):
     professor_id: int
-    dia_semana: str
-    hora_inicio: str
-    hora_fim: str
+    data: date
+    hora_inicio: time
+    hora_fim: time
 
 
 class DisponibilidadeCreate(DisponibilidadeBase):

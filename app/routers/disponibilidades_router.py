@@ -34,7 +34,7 @@ def criar_disponibilidade(
 
     nova_disponibilidade = Disponibilidade(
         professor_id=disponibilidade.professor_id,
-        dia_semana=disponibilidade.dia_semana,
+        data=disponibilidade.data,
         hora_inicio=disponibilidade.hora_inicio,
         hora_fim=disponibilidade.hora_fim
     )

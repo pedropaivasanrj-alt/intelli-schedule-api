@@ -74,9 +74,9 @@ def test_fluxo_crud_principal():
     # 5. Criar disponibilidade
     disponibilidade_payload = {
         "professor_id": professor_id,
-        "dia_semana": "Segunda-feira",
-        "hora_inicio": "08:00",
-        "hora_fim": "10:00"
+        "data": "2026-06-16",
+        "hora_inicio": "08:00:00",
+        "hora_fim": "10:00:00"
     }
 
     response_disponibilidade = client.post(
