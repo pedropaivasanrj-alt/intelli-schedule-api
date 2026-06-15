@@ -32,6 +32,12 @@ def criar_disponibilidade(
             detail="Professor não encontrado"
         )
 
+    if disponibilidade.hora_fim <= disponibilidade.hora_inicio:
+        raise HTTPException(
+            status_code=400,
+            detail="A hora final deve ser maior que a hora inicial"
+        )
+
     nova_disponibilidade = Disponibilidade(
         professor_id=disponibilidade.professor_id,
         data=disponibilidade.data,
