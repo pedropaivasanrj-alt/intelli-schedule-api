@@ -496,3 +496,9 @@ def test_gerar_agendamento_automatico():
     client.delete(f"/api/v1/projetos/{projeto_1_id}")
     client.delete(f"/api/v1/projetos/{projeto_2_id}")
     client.delete(f"/api/v1/professores/{professor_id}")
+
+def test_visualizar_agenda_completa():
+    response = client.get("/api/v1/agendamentos/agenda")
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)

@@ -121,3 +121,96 @@ def gerar_agendamentos_automaticos(db: Session):
         "agendados": agendados,
         "nao_agendados": nao_agendados
     }
+def formatar_reuniao(db: Session, reuniao: Reuniao):
+    professor = (
+        db.query(Professor)
+        .filter(Professor.id == reuniao.professor_id)
+        .first()
+    )
+
+    projeto = (
+        db.query(Projeto)
+        .filter(Projeto.id == reuniao.projeto_id)
+        .first()
+    )
+
+    return {
+        "reuniao_id": reuniao.id,
+        "projeto_id": reuniao.projeto_id,
+        "projeto_nome": projeto.nome if projeto else None,
+        "professor_id": reuniao.professor_id,
+        "professor_nome": professor.nome if professor else None,
+        "ciclo_avaliacao": reuniao.ciclo_avaliacao,
+        "data_hora_inicio": reuniao.data_hora_inicio,
+        "data_hora_fim": reuniao.data_hora_fim,
+        "status": reuniao.status
+    }
+
+
+def listar_agenda_completa(db: Session):
+    reunioes = (
+        db.query(Reuniao)
+        .order_by(Reuniao.data_hora_inicio)
+        .all()
+    )
+
+    return [formatar_reuniao(db, reuniao) for reuniao in reunioes]
+
+
+def listar_agenda_por_professor(db: Session, professor_id: int):
+    professor = (
+        db.query(Professor)
+        .filter(Professor.id == professor_id)
+        .first()
+    )
+
+    if not professor:
+        return None
+
+    reunioes = (
+        db.query(Reuniao)
+        .filter(Reuniao.professor_id == professor_id)
+        .order_by(Reuniao.data_hora_inicio)
+        .all()
+    )
+
+    return {
+        "professor_id": professor.id,
+        "professor_nome": professor.nome,
+        "reunioes": [formatar_reuniao(db, reuniao) for reuniao in reunioes]
+    }
+
+
+def listar_agenda_por_aluno(db: Session, aluno_id: int):
+    from app.models.aluno import Aluno
+
+    aluno = (
+        db.query(Aluno)
+        .filter(Aluno.id == aluno_id)
+        .first()
+    )
+
+    if not aluno:
+        return None
+
+    projeto_ids = [projeto.id for projeto in aluno.projetos]
+
+    reunioes = (
+        db.query(Reuniao)
+        .filter(Reuniao.projeto_id.in_(projeto_ids))
+        .order_by(Reuniao.data_hora_inicio)
+        .all()
+    )
+
+    return {
+        "aluno_id": aluno.id,
+        "aluno_nome": aluno.nome,
+        "projetos": [
+            {
+                "projeto_id": projeto.id,
+                "projeto_nome": projeto.nome
+            }
+            for projeto in aluno.projetos
+        ],
+        "reunioes": [formatar_reuniao(db, reuniao) for reuniao in reunioes]
+    }
