@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from datetime import date, time, datetime
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT_DIR))
@@ -14,7 +15,7 @@ from app.models.projeto import Projeto
 from app.models.disponibilidade import Disponibilidade
 from app.models.reuniao import Reuniao
 
-from app.services.agendamento_service import gerar_agendamentos_automaticos
+from app.services.agendamento_service import agendar_reuniao_por_aluno
 
 
 def buscar_ou_criar_usuario(db, nome, email, papel):
@@ -101,7 +102,7 @@ def buscar_ou_criar_projeto(db, nome, alunos_envolvidos, descricao_foco):
 
 
 def criar_disponibilidade(db, professor_id, data, hora_inicio, hora_fim):
-    disponibilidade_existente = (
+    disponibilidade = (
         db.query(Disponibilidade)
         .filter(Disponibilidade.professor_id == professor_id)
         .filter(Disponibilidade.data == data)
@@ -110,8 +111,8 @@ def criar_disponibilidade(db, professor_id, data, hora_inicio, hora_fim):
         .first()
     )
 
-    if disponibilidade_existente:
-        return disponibilidade_existente
+    if disponibilidade:
+        return disponibilidade
 
     disponibilidade = Disponibilidade(
         professor_id=professor_id,
@@ -158,6 +159,31 @@ def limpar_reunioes_demo(db):
     db.commit()
 
 
+def agendar_demo_se_nao_existir(
+    db,
+    aluno_id,
+    projeto_id,
+    professor_id,
+    data_hora_inicio
+):
+    reuniao_existente = (
+        db.query(Reuniao)
+        .filter(Reuniao.projeto_id == projeto_id)
+        .first()
+    )
+
+    if reuniao_existente:
+        return None
+
+    return agendar_reuniao_por_aluno(
+        db=db,
+        aluno_id=aluno_id,
+        projeto_id=projeto_id,
+        professor_id=professor_id,
+        data_hora_inicio=data_hora_inicio
+    )
+
+
 def executar_seed():
     db = SessionLocal()
 
@@ -167,93 +193,93 @@ def executar_seed():
         admin = buscar_ou_criar_usuario(
             db,
             nome="Administrador Geral",
-            email="admin.demo@intelli.local",
+            email="admin.demo@intelli.com.br",
             papel="admin"
         )
 
         coordenador = buscar_ou_criar_usuario(
             db,
             nome="Coordenador Acadêmico",
-            email="coordenador.demo@intelli.local",
+            email="coordenador.demo@intelli.com.br",
             papel="coordenador"
         )
 
-        usuario_prof_1 = buscar_ou_criar_usuario(
+        usuario_prof_ana = buscar_ou_criar_usuario(
             db,
             nome="Usuário Prof. Ana",
-            email="usuario.prof.ana@intelli.local",
+            email="usuario.prof.ana@intelli.com.br",
             papel="professor"
         )
 
-        usuario_prof_2 = buscar_ou_criar_usuario(
+        usuario_prof_carlos = buscar_ou_criar_usuario(
             db,
             nome="Usuário Prof. Carlos",
-            email="usuario.prof.carlos@intelli.local",
+            email="usuario.prof.carlos@intelli.com.br",
             papel="professor"
         )
 
         prof_ana = buscar_ou_criar_professor(
             db,
             nome="Prof. Ana Martins",
-            email="ana.martins@intelli.local",
+            email="ana.martins@intelli.com.br",
             departamento="Computação",
-            usuario_id=usuario_prof_1.id
+            usuario_id=usuario_prof_ana.id
         )
 
         prof_carlos = buscar_ou_criar_professor(
             db,
             nome="Prof. Carlos Souza",
-            email="carlos.souza@intelli.local",
+            email="carlos.souza@intelli.com.br",
             departamento="Sistemas de Informação",
-            usuario_id=usuario_prof_2.id
+            usuario_id=usuario_prof_carlos.id
         )
 
-        usuario_aluno_1 = buscar_ou_criar_usuario(
+        usuario_maria = buscar_ou_criar_usuario(
             db,
             nome="Usuário Maria",
-            email="usuario.maria@intelli.local",
+            email="usuario.maria@intelli.com.br",
             papel="aluno"
         )
 
-        usuario_aluno_2 = buscar_ou_criar_usuario(
+        usuario_pedro = buscar_ou_criar_usuario(
             db,
             nome="Usuário Pedro",
-            email="usuario.pedro@intelli.local",
+            email="usuario.pedro@intelli.com.br",
             papel="aluno"
         )
 
-        usuario_aluno_3 = buscar_ou_criar_usuario(
+        usuario_lucas = buscar_ou_criar_usuario(
             db,
             nome="Usuário Lucas",
-            email="usuario.lucas@intelli.local",
+            email="usuario.lucas@intelli.com.br",
             papel="aluno"
         )
 
         maria = buscar_ou_criar_aluno(
             db,
             nome="Maria Oliveira",
-            email="maria.oliveira@intelli.local",
+            email="maria.oliveira@intelli.com.br",
             matricula="20260001",
             curso="Ciência da Computação",
-            usuario_id=usuario_aluno_1.id
+            usuario_id=usuario_maria.id
         )
 
         pedro = buscar_ou_criar_aluno(
             db,
             nome="Pedro Lima",
-            email="pedro.lima@intelli.local",
+            email="pedro.lima@intelli.com.br",
             matricula="20260002",
             curso="Ciência da Computação",
-            usuario_id=usuario_aluno_2.id
+            usuario_id=usuario_pedro.id
         )
 
         lucas = buscar_ou_criar_aluno(
             db,
             nome="Lucas Almeida",
-            email="lucas.almeida@intelli.local",
+            email="lucas.almeida@intelli.com.br",
             matricula="20260003",
             curso="Sistemas de Informação",
-            usuario_id=usuario_aluno_3.id
+            usuario_id=usuario_lucas.id
         )
 
         projeto_1 = buscar_ou_criar_projeto(
@@ -286,26 +312,66 @@ def executar_seed():
         criar_disponibilidade(
             db,
             professor_id=prof_ana.id,
-            data="2026-06-20",
-            hora_inicio="08:00:00",
-            hora_fim="12:00:00"
+            data=date(2026, 6, 21),
+            hora_inicio=time(8, 0),
+            hora_fim=time(12, 0)
         )
 
         criar_disponibilidade(
             db,
             professor_id=prof_carlos.id,
-            data="2026-06-20",
-            hora_inicio="13:00:00",
-            hora_fim="17:00:00"
+            data=date(2026, 6, 21),
+            hora_inicio=time(13, 0),
+            hora_fim=time(17, 0)
         )
 
-        resultado = gerar_agendamentos_automaticos(db)
+        agendamento_1 = agendar_demo_se_nao_existir(
+            db,
+            aluno_id=maria.id,
+            projeto_id=projeto_1.id,
+            professor_id=prof_ana.id,
+            data_hora_inicio=datetime(2026, 6, 21, 8, 0)
+        )
+
+        agendamento_2 = agendar_demo_se_nao_existir(
+            db,
+            aluno_id=lucas.id,
+            projeto_id=projeto_2.id,
+            professor_id=prof_ana.id,
+            data_hora_inicio=datetime(2026, 6, 21, 9, 0)
+        )
+
+        agendamento_3 = agendar_demo_se_nao_existir(
+            db,
+            aluno_id=maria.id,
+            projeto_id=projeto_3.id,
+            professor_id=prof_carlos.id,
+            data_hora_inicio=datetime(2026, 6, 21, 13, 0)
+        )
+
+        agendamentos_criados = [
+            agendamento
+            for agendamento in [agendamento_1, agendamento_2, agendamento_3]
+            if agendamento is not None
+        ]
 
         print("Seed de demonstração criado com sucesso.")
+        print("")
+        print("Acessos demonstrativos:")
         print(f"Admin: {admin.email} | senha: 123456")
         print(f"Coordenador: {coordenador.email} | senha: 123456")
-        print(f"Total agendados: {resultado['total_agendados']}")
-        print(f"Total não agendados: {resultado['total_nao_agendados']}")
+        print(f"Aluno Maria: {maria.email} | senha: 123456")
+        print(f"Aluno Lucas: {lucas.email} | senha: 123456")
+        print("")
+        print(f"Professores criados: {prof_ana.nome}, {prof_carlos.nome}")
+        print(
+            "Projetos demo criados: "
+            f"{projeto_1.nome}, {projeto_2.nome}, {projeto_3.nome}"
+        )
+        print(
+            "Agendamentos criados pelo fluxo do aluno: "
+            f"{len(agendamentos_criados)}"
+        )
 
     finally:
         db.close()
