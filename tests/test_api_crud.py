@@ -611,3 +611,136 @@ def test_aluno_realiza_agendamento():
     client.delete(f"/api/v1/projetos/{projeto_id}")
     client.delete(f"/api/v1/alunos/{aluno_id}")
     client.delete(f"/api/v1/professores/{professor_id}")
+
+def test_login_e_obter_usuario_atual():
+    email_usuario = f"login_{uuid4().hex[:8]}@teste.com"
+
+    response_usuario = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Usuário Login",
+            "email": email_usuario,
+            "senha": "123456",
+            "papel": "coordenador",
+            "ativo": True
+        }
+    )
+
+    assert response_usuario.status_code == 200
+    usuario_id = response_usuario.json()["id"]
+
+    response_login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_usuario,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login.status_code == 200
+
+    dados_login = response_login.json()
+
+    assert "access_token" in dados_login
+    assert dados_login["token_type"] == "bearer"
+    assert dados_login["usuario"]["email"] == email_usuario
+    assert dados_login["usuario"]["papel"] == "coordenador"
+
+    token = dados_login["access_token"]
+
+    response_me = client.get(
+        "/api/v1/auth/me",
+        headers={
+            "Authorization": f"Bearer {token}"
+        }
+    )
+
+    assert response_me.status_code == 200
+    assert response_me.json()["email"] == email_usuario
+
+    client.delete(f"/api/v1/usuarios/{usuario_id}")
+
+
+def test_dashboard_restrito_por_papel():
+    email_coord = f"coord_dashboard_{uuid4().hex[:8]}@teste.com"
+    email_aluno = f"aluno_dashboard_{uuid4().hex[:8]}@teste.com"
+
+    response_coord = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Coordenador Dashboard",
+            "email": email_coord,
+            "senha": "123456",
+            "papel": "coordenador",
+            "ativo": True
+        }
+    )
+
+    assert response_coord.status_code == 200
+    coord_id = response_coord.json()["id"]
+
+    response_aluno = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Aluno Dashboard",
+            "email": email_aluno,
+            "senha": "123456",
+            "papel": "aluno",
+            "ativo": True
+        }
+    )
+
+    assert response_aluno.status_code == 200
+    aluno_usuario_id = response_aluno.json()["id"]
+
+    response_login_coord = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_coord,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login_coord.status_code == 200
+    token_coord = response_login_coord.json()["access_token"]
+
+    response_dashboard_coord = client.get(
+        "/api/v1/dashboard/resumo",
+        headers={
+            "Authorization": f"Bearer {token_coord}"
+        }
+    )
+
+    assert response_dashboard_coord.status_code == 200
+
+    indicadores = response_dashboard_coord.json()["indicadores"]
+
+    assert "professores" in indicadores
+    assert "alunos" in indicadores
+    assert "projetos" in indicadores
+    assert "reunioes_agendadas" in indicadores
+    assert "projetos_sem_agendamento" in indicadores
+    assert "conflitos_evitados" not in indicadores
+
+    response_login_aluno = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_aluno,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login_aluno.status_code == 200
+    token_aluno = response_login_aluno.json()["access_token"]
+
+    response_dashboard_aluno = client.get(
+        "/api/v1/dashboard/resumo",
+        headers={
+            "Authorization": f"Bearer {token_aluno}"
+        }
+    )
+
+    assert response_dashboard_aluno.status_code == 403
+
+    client.delete(f"/api/v1/usuarios/{coord_id}")
+    client.delete(f"/api/v1/usuarios/{aluno_usuario_id}")
