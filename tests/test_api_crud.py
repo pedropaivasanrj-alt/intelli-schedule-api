@@ -502,3 +502,112 @@ def test_visualizar_agenda_completa():
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+def test_aluno_realiza_agendamento():
+    email_professor = f"prof_aluno_agenda_{uuid4().hex[:8]}@teste.com"
+    email_aluno = f"aluno_agenda_{uuid4().hex[:8]}@teste.com"
+    matricula = f"MAT-AGENDA-{uuid4().hex[:8]}"
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        json={
+            "nome": "Professor Agendamento Aluno",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
+
+    response_aluno = client.post(
+        "/api/v1/alunos/",
+        json={
+            "nome": "Aluno que Agenda",
+            "email": email_aluno,
+            "matricula": matricula,
+            "curso": "Ciência da Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_aluno.status_code == 200
+    aluno_id = response_aluno.json()["id"]
+
+    response_projeto = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto Agendado pelo Aluno",
+            "alunos_envolvidos": "Aluno que Agenda",
+            "descricao_foco": "Teste do fluxo de agendamento feito pelo aluno"
+        }
+    )
+
+    assert response_projeto.status_code == 200
+    projeto_id = response_projeto.json()["id"]
+
+    response_vinculo = client.post(
+        f"/api/v1/projetos/{projeto_id}/alunos/{aluno_id}"
+    )
+
+    assert response_vinculo.status_code == 200
+
+    response_disponibilidade = client.post(
+        "/api/v1/disponibilidades/",
+        json={
+            "professor_id": professor_id,
+            "data": "2026-06-21",
+            "hora_inicio": "08:00:00",
+            "hora_fim": "12:00:00"
+        }
+    )
+
+    assert response_disponibilidade.status_code == 200
+    disponibilidade_id = response_disponibilidade.json()["id"]
+
+    response_horarios = client.get(
+        f"/api/v1/agendamentos/horarios-disponiveis?data=2026-06-21&professor_id={professor_id}"
+    )
+
+    assert response_horarios.status_code == 200
+    assert len(response_horarios.json()) >= 1
+
+    response_agendamento = client.post(
+        "/api/v1/agendamentos/aluno/agendar",
+        json={
+            "aluno_id": aluno_id,
+            "projeto_id": projeto_id,
+            "professor_id": professor_id,
+            "data_hora_inicio": "2026-06-21T08:00:00"
+        }
+    )
+
+    assert response_agendamento.status_code == 200
+
+    agendamento = response_agendamento.json()
+
+    assert agendamento["aluno_id"] == aluno_id
+    assert agendamento["projeto_id"] == projeto_id
+    assert agendamento["professor_id"] == professor_id
+    assert agendamento["status"] == "Agendado"
+
+    reuniao_id = agendamento["reuniao_id"]
+
+    response_conflito = client.post(
+        "/api/v1/agendamentos/aluno/agendar",
+        json={
+            "aluno_id": aluno_id,
+            "projeto_id": projeto_id,
+            "professor_id": professor_id,
+            "data_hora_inicio": "2026-06-21T08:00:00"
+        }
+    )
+
+    assert response_conflito.status_code == 400
+
+    client.delete(f"/api/v1/reunioes/{reuniao_id}")
+    client.delete(f"/api/v1/disponibilidades/{disponibilidade_id}")
+    client.delete(f"/api/v1/projetos/{projeto_id}")
+    client.delete(f"/api/v1/alunos/{aluno_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")

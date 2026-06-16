@@ -21,6 +21,7 @@ class Aluno(Base):
     matricula = Column(String, unique=True, index=True, nullable=True)
     curso = Column(String, nullable=True)
     ativo = Column(Boolean, default=True)
+    
 
     usuario = relationship("Usuario", back_populates="aluno")
     projetos = relationship(
@@ -28,3 +29,4 @@ class Aluno(Base):
         secondary=projeto_alunos,
         back_populates="alunos"
     )
+    reunioes = relationship("Reuniao", back_populates="aluno")
