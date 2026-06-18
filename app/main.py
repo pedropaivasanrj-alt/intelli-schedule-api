@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.database import Base, engine
 from app.core.schema_migrations import aplicar_migracoes_minimas
@@ -55,7 +58,18 @@ app.include_router(agendamentos_router.router)
 app.include_router(auth_router.router)
 app.include_router(dashboard_router.router)
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount(
+        "/app",
+        StaticFiles(directory=STATIC_DIR, html=True),
+        name="intellischedule_app"
+    )
+
 
 @app.get("/")
 def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "app": "/app"
+    }
