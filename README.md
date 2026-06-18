@@ -257,6 +257,7 @@ cria os seguintes acessos demonstrativos:
 ```text
 Admin: admin.demo@intelli.com.br | senha: 123456
 Coordenador: coordenador.demo@intelli.com.br | senha: 123456
+Professor Ana: ana.martins@intelli.com.br | senha: 123456
 Aluno Maria: maria.oliveira@intelli.com.br | senha: 123456
 Aluno Lucas: lucas.almeida@intelli.com.br | senha: 123456
 ```

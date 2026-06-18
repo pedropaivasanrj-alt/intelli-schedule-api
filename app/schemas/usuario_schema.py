@@ -20,6 +20,17 @@ class UsuarioCreate(UsuarioBase):
     senha: str
 
 
+class CoordenadorCreate(BaseModel):
+    nome: str
+    email: EmailStr
+    senha: str
+    ativo: bool = True
+
+
+class UsuarioAtivoUpdate(BaseModel):
+    ativo: bool
+
+
 class UsuarioResponse(UsuarioBase):
     id: int
 

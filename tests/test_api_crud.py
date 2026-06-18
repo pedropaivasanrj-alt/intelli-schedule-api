@@ -7,6 +7,24 @@ from app.main import app
 client = TestClient(app)
 
 
+def projeto_payload(
+    nome: str,
+    orientador_id: int,
+    alunos_envolvidos: str = "Aluno Teste",
+    descricao_foco: str = "Teste automatizado"
+):
+    return {
+        "nome": nome,
+        "resumo": f"Resumo do {nome}",
+        "caracteristicas": f"Características do {nome}",
+        "objetivo": f"Objetivo do {nome}",
+        "alunos_envolvidos": alunos_envolvidos,
+        "descricao_foco": descricao_foco,
+        "status": "Ativo",
+        "orientador_id": orientador_id
+    }
+
+
 def test_health_check():
     response = client.get("/")
 
@@ -46,20 +64,27 @@ def test_fluxo_crud_principal():
     assert response_busca_professor.json()["id"] == professor_id
 
     # 3. Criar projeto
-    projeto_payload = {
-        "nome": "Projeto Teste API",
-        "alunos_envolvidos": "Aluno Teste 1, Aluno Teste 2",
-        "descricao_foco": "Teste automatizado do fluxo principal"
-    }
+    projeto_payload_teste = projeto_payload(
+        nome="Projeto Teste API",
+        orientador_id=professor_id,
+        alunos_envolvidos="Aluno Teste 1, Aluno Teste 2",
+        descricao_foco="Teste automatizado do fluxo principal"
+    )
 
     response_projeto = client.post(
         "/api/v1/projetos/",
-        json=projeto_payload
+        json=projeto_payload_teste
     )
 
     assert response_projeto.status_code == 200
     projeto = response_projeto.json()
-    assert projeto["nome"] == projeto_payload["nome"]
+    assert projeto["nome"] == projeto_payload_teste["nome"]
+    assert projeto["resumo"] == projeto_payload_teste["resumo"]
+    assert projeto["caracteristicas"] == projeto_payload_teste["caracteristicas"]
+    assert any(
+        professor["papel_no_projeto"] == "orientador"
+        for professor in projeto["professores"]
+    )
 
     projeto_id = projeto["id"]
 
@@ -204,11 +229,12 @@ def test_nao_deve_criar_reuniao_com_horario_invalido():
 
     response_projeto = client.post(
         "/api/v1/projetos/",
-        json={
-            "nome": "Projeto Horário Inválido",
-            "alunos_envolvidos": "Aluno Teste",
-            "descricao_foco": "Teste de horário inválido"
-        }
+        json=projeto_payload(
+            nome="Projeto Horário Inválido",
+            orientador_id=professor_id,
+            alunos_envolvidos="Aluno Teste",
+            descricao_foco="Teste de horário inválido"
+        )
     )
 
     projeto_id = response_projeto.json()["id"]
@@ -369,7 +395,21 @@ def test_crud_usuarios_e_admin_unico():
 
 def test_vincular_aluno_a_projeto():
     email_aluno = f"aluno_projeto_{uuid4().hex[:8]}@teste.com"
+    email_professor = f"prof_projeto_{uuid4().hex[:8]}@teste.com"
     matricula = f"MAT-PROJ-{uuid4().hex[:8]}"
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        json={
+            "nome": "Professor Projeto Teste",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
 
     response_aluno = client.post(
         "/api/v1/alunos/",
@@ -387,11 +427,12 @@ def test_vincular_aluno_a_projeto():
 
     response_projeto = client.post(
         "/api/v1/projetos/",
-        json={
-            "nome": "Projeto com Aluno Vinculado",
-            "alunos_envolvidos": "Aluno Projeto Teste",
-            "descricao_foco": "Teste de vínculo real entre aluno e projeto"
-        }
+        json=projeto_payload(
+            nome="Projeto com Aluno Vinculado",
+            orientador_id=professor_id,
+            alunos_envolvidos="Aluno Projeto Teste",
+            descricao_foco="Teste de vínculo real entre aluno e projeto"
+        )
     )
 
     assert response_projeto.status_code == 200
@@ -421,6 +462,7 @@ def test_vincular_aluno_a_projeto():
 
     client.delete(f"/api/v1/projetos/{projeto_id}")
     client.delete(f"/api/v1/alunos/{aluno_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")
 def test_gerar_agendamento_automatico():
     email_professor = f"prof_agendamento_{uuid4().hex[:8]}@teste.com"
 
@@ -452,20 +494,22 @@ def test_gerar_agendamento_automatico():
 
     response_projeto_1 = client.post(
         "/api/v1/projetos/",
-        json={
-            "nome": "Projeto Agendamento 1",
-            "alunos_envolvidos": "Aluno A",
-            "descricao_foco": "Teste de agendamento automático"
-        }
+        json=projeto_payload(
+            nome="Projeto Agendamento 1",
+            orientador_id=professor_id,
+            alunos_envolvidos="Aluno A",
+            descricao_foco="Teste de agendamento automático"
+        )
     )
 
     response_projeto_2 = client.post(
         "/api/v1/projetos/",
-        json={
-            "nome": "Projeto Agendamento 2",
-            "alunos_envolvidos": "Aluno B",
-            "descricao_foco": "Teste de agendamento automático"
-        }
+        json=projeto_payload(
+            nome="Projeto Agendamento 2",
+            orientador_id=professor_id,
+            alunos_envolvidos="Aluno B",
+            descricao_foco="Teste de agendamento automático"
+        )
     )
 
     assert response_projeto_1.status_code == 200
@@ -537,11 +581,12 @@ def test_aluno_realiza_agendamento():
 
     response_projeto = client.post(
         "/api/v1/projetos/",
-        json={
-            "nome": "Projeto Agendado pelo Aluno",
-            "alunos_envolvidos": "Aluno que Agenda",
-            "descricao_foco": "Teste do fluxo de agendamento feito pelo aluno"
-        }
+        json=projeto_payload(
+            nome="Projeto Agendado pelo Aluno",
+            orientador_id=professor_id,
+            alunos_envolvidos="Aluno que Agenda",
+            descricao_foco="Teste do fluxo de agendamento feito pelo aluno"
+        )
     )
 
     assert response_projeto.status_code == 200
@@ -744,3 +789,339 @@ def test_dashboard_restrito_por_papel():
 
     client.delete(f"/api/v1/usuarios/{coord_id}")
     client.delete(f"/api/v1/usuarios/{aluno_usuario_id}")
+
+
+def test_admin_gerencia_coordenadores_e_logs():
+    email_admin = f"admin_acesso_{uuid4().hex[:8]}@teste.com"
+    email_coord = f"coord_acesso_{uuid4().hex[:8]}@teste.com"
+
+    response_admin = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Admin Acessos",
+            "email": email_admin,
+            "senha": "123456",
+            "papel": "admin",
+            "ativo": True
+        }
+    )
+
+    assert response_admin.status_code == 200
+    admin_id = response_admin.json()["id"]
+
+    response_login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_admin,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login.status_code == 200
+    headers = {
+        "Authorization": f"Bearer {response_login.json()['access_token']}"
+    }
+
+    response_coord = client.post(
+        "/api/v1/usuarios/coordenadores",
+        headers=headers,
+        json={
+            "nome": "Coordenador Acessos",
+            "email": email_coord,
+            "senha": "123456",
+            "ativo": True
+        }
+    )
+
+    assert response_coord.status_code == 200
+    coordenador = response_coord.json()
+    assert coordenador["papel"] == "coordenador"
+
+    response_logs = client.get(
+        "/api/v1/usuarios/logs",
+        headers=headers
+    )
+
+    assert response_logs.status_code == 200
+    assert any(
+        log["recurso"] == "coordenador"
+        for log in response_logs.json()
+    )
+
+    response_delete_coord = client.delete(
+        f"/api/v1/usuarios/coordenadores/{coordenador['id']}",
+        headers=headers
+    )
+
+    assert response_delete_coord.status_code == 200
+
+    client.delete(f"/api/v1/usuarios/{admin_id}")
+
+
+def test_coordenador_ativa_e_desativa_alunos_e_professores():
+    email_coord = f"coord_ativo_{uuid4().hex[:8]}@teste.com"
+    email_professor = f"prof_ativo_{uuid4().hex[:8]}@teste.com"
+    email_aluno = f"aluno_ativo_{uuid4().hex[:8]}@teste.com"
+    matricula = f"MAT-ATIVO-{uuid4().hex[:8]}"
+
+    response_coord = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Coordenador Ativo",
+            "email": email_coord,
+            "senha": "123456",
+            "papel": "coordenador",
+            "ativo": True
+        }
+    )
+
+    assert response_coord.status_code == 200
+    coord_id = response_coord.json()["id"]
+
+    response_login = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_coord,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login.status_code == 200
+    headers = {
+        "Authorization": f"Bearer {response_login.json()['access_token']}"
+    }
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        headers=headers,
+        json={
+            "nome": "Professor Ativação",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
+
+    response_aluno = client.post(
+        "/api/v1/alunos/",
+        headers=headers,
+        json={
+            "nome": "Aluno Ativação",
+            "email": email_aluno,
+            "matricula": matricula,
+            "curso": "Ciência da Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_aluno.status_code == 200
+    aluno_id = response_aluno.json()["id"]
+
+    response_professor_inativo = client.patch(
+        f"/api/v1/professores/{professor_id}/ativo",
+        headers=headers,
+        json={"ativo": False}
+    )
+
+    assert response_professor_inativo.status_code == 200
+    assert response_professor_inativo.json()["ativo"] is False
+
+    response_aluno_inativo = client.patch(
+        f"/api/v1/alunos/{aluno_id}/ativo",
+        headers=headers,
+        json={"ativo": False}
+    )
+
+    assert response_aluno_inativo.status_code == 200
+    assert response_aluno_inativo.json()["ativo"] is False
+
+    response_professor_ativo = client.patch(
+        f"/api/v1/professores/{professor_id}/ativo",
+        headers=headers,
+        json={"ativo": True}
+    )
+
+    assert response_professor_ativo.status_code == 200
+    assert response_professor_ativo.json()["ativo"] is True
+
+    response_aluno_ativo = client.patch(
+        f"/api/v1/alunos/{aluno_id}/ativo",
+        headers=headers,
+        json={"ativo": True}
+    )
+
+    assert response_aluno_ativo.status_code == 200
+    assert response_aluno_ativo.json()["ativo"] is True
+
+    client.delete(f"/api/v1/alunos/{aluno_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")
+    client.delete(f"/api/v1/usuarios/{coord_id}")
+
+
+def test_projeto_exige_resumo_caracteristicas_e_orientador():
+    email_professor = f"prof_regra_proj_{uuid4().hex[:8]}@teste.com"
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        json={
+            "nome": "Professor Regra Projeto",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
+
+    response_sem_resumo = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto Sem Resumo",
+            "caracteristicas": "Características obrigatórias",
+            "alunos_envolvidos": "Aluno",
+            "orientador_id": professor_id
+        }
+    )
+
+    assert response_sem_resumo.status_code == 422
+
+    response_sem_orientador = client.post(
+        "/api/v1/projetos/",
+        json={
+            "nome": "Projeto Sem Orientador",
+            "resumo": "Resumo obrigatório",
+            "caracteristicas": "Características obrigatórias",
+            "alunos_envolvidos": "Aluno"
+        }
+    )
+
+    assert response_sem_orientador.status_code == 422
+
+    response_projeto = client.post(
+        "/api/v1/projetos/",
+        json=projeto_payload(
+            nome="Projeto Com Orientador",
+            orientador_id=professor_id
+        )
+    )
+
+    assert response_projeto.status_code == 200
+    projeto = response_projeto.json()
+    projeto_id = projeto["id"]
+    assert projeto["resumo"]
+    assert projeto["caracteristicas"]
+    assert projeto["professores"][0]["papel_no_projeto"] == "orientador"
+
+    response_remove_ultimo_orientador = client.delete(
+        f"/api/v1/projetos/{projeto_id}/professores/{professor_id}"
+    )
+
+    assert response_remove_ultimo_orientador.status_code == 400
+
+    client.delete(f"/api/v1/projetos/{projeto_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")
+
+
+def test_professor_vinculado_cria_e_edita_historico_projeto():
+    email_usuario_professor = f"usuario_prof_hist_{uuid4().hex[:8]}@teste.com"
+    email_professor = f"prof_hist_{uuid4().hex[:8]}@teste.com"
+
+    response_usuario_professor = client.post(
+        "/api/v1/usuarios/",
+        json={
+            "nome": "Usuário Professor Histórico",
+            "email": email_usuario_professor,
+            "senha": "123456",
+            "papel": "professor",
+            "ativo": True
+        }
+    )
+
+    assert response_usuario_professor.status_code == 200
+    usuario_professor_id = response_usuario_professor.json()["id"]
+
+    response_professor = client.post(
+        "/api/v1/professores/",
+        json={
+            "nome": "Professor Histórico",
+            "email": email_professor,
+            "departamento": "Computação",
+            "ativo": True,
+            "usuario_id": usuario_professor_id
+        }
+    )
+
+    assert response_professor.status_code == 200
+    professor_id = response_professor.json()["id"]
+
+    response_projeto = client.post(
+        "/api/v1/projetos/",
+        json=projeto_payload(
+            nome="Projeto com Histórico",
+            orientador_id=professor_id
+        )
+    )
+
+    assert response_projeto.status_code == 200
+    projeto_id = response_projeto.json()["id"]
+
+    response_login_professor = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email_usuario_professor,
+            "senha": "123456"
+        }
+    )
+
+    assert response_login_professor.status_code == 200
+    headers_professor = {
+        "Authorization": (
+            f"Bearer {response_login_professor.json()['access_token']}"
+        )
+    }
+
+    response_historico = client.post(
+        f"/api/v1/projetos/{projeto_id}/historico",
+        headers=headers_professor,
+        json={
+            "titulo": "Primeira reunião",
+            "resumo": "Foram definidos os próximos passos.",
+            "decisoes": "Priorizar o MVP.",
+            "pendencias": "Enviar documentação.",
+            "proximos_passos": "Revisar protótipo."
+        }
+    )
+
+    assert response_historico.status_code == 200
+    historico = response_historico.json()
+    assert historico["professor_id"] == professor_id
+
+    response_historico_editado = client.put(
+        f"/api/v1/projetos/{projeto_id}/historico/{historico['id']}",
+        headers=headers_professor,
+        json={
+            "resumo": "Resumo atualizado pelo professor orientador."
+        }
+    )
+
+    assert response_historico_editado.status_code == 200
+    assert (
+        response_historico_editado.json()["resumo"]
+        == "Resumo atualizado pelo professor orientador."
+    )
+
+    response_lista = client.get(
+        f"/api/v1/projetos/{projeto_id}/historico",
+        headers=headers_professor
+    )
+
+    assert response_lista.status_code == 200
+    assert len(response_lista.json()) == 1
+
+    client.delete(f"/api/v1/projetos/{projeto_id}")
+    client.delete(f"/api/v1/professores/{professor_id}")
+    client.delete(f"/api/v1/usuarios/{usuario_professor_id}")

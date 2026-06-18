@@ -6,6 +6,7 @@ from app.core.auth_dependencies import obter_usuario_atual
 from app.core.security import criar_token_acesso, verificar_senha
 from app.models.usuario import Usuario
 from app.schemas.auth_schema import LoginRequest, LoginResponse, UsuarioAutenticado
+from app.services.log_service import registrar_log
 
 router = APIRouter(
     prefix="/api/v1/auth",
@@ -52,6 +53,14 @@ def login(
         "email": usuario.email,
         "papel": usuario.papel
     })
+
+    registrar_log(
+        db=db,
+        usuario=usuario,
+        acao="login",
+        recurso="auth",
+        detalhes="Login realizado com sucesso"
+    )
 
     return {
         "access_token": token,

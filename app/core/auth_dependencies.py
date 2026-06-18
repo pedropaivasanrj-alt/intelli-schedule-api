@@ -1,4 +1,6 @@
 from fastapi import Depends, HTTPException, status
+from typing import Optional
+
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 import jwt
@@ -9,6 +11,7 @@ from app.models.usuario import Usuario
 
 
 http_bearer = HTTPBearer()
+http_bearer_optional = HTTPBearer(auto_error=False)
 
 
 def obter_usuario_atual(
@@ -71,3 +74,36 @@ def exigir_papeis(papeis_permitidos: list[str]):
         return usuario_atual
 
     return dependencia
+
+
+def obter_usuario_opcional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        http_bearer_optional
+    ),
+    db: Session = Depends(get_db)
+):
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+
+    try:
+        payload = decodificar_token(token)
+        usuario_id = payload.get("sub")
+
+        if usuario_id is None:
+            return None
+
+    except jwt.InvalidTokenError:
+        return None
+
+    usuario = (
+        db.query(Usuario)
+        .filter(Usuario.id == int(usuario_id))
+        .first()
+    )
+
+    if not usuario or not usuario.ativo:
+        return None
+
+    return usuario

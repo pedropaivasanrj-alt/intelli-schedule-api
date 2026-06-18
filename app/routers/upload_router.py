@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 import pandas as pd
 import io
 
@@ -7,6 +8,7 @@ import io
 from app.core.database import get_db
 from app.models.professor import Professor
 from app.models.projeto import Projeto
+from app.models.projeto_professor import ProjetoProfessor
 from app.models.reuniao import Reuniao
 from app.schemas.upload_schema import LoteProjetos
 
@@ -39,21 +41,32 @@ def salvar_planilha_projetos(lote: LoteProjetos, db: Session = Depends(get_db)):
             # 2. Cria o Projeto
             novo_projeto = Projeto(
                 nome=linha.nome_projeto,
+                resumo=f"Projeto importado para avaliação: {linha.nome_projeto}",
+                caracteristicas=linha.foco_avaliacao,
+                objetivo="Organizar a avaliação acadêmica do projeto importado.",
                 alunos_envolvidos=linha.alunos_envolvidos,
-                descricao_foco=linha.foco_avaliacao
+                descricao_foco=linha.foco_avaliacao,
+                status="Ativo"
             )
             db.add(novo_projeto)
             db.flush()
 
-            # 3. Cria a intenção de Reunião (Sem horário ainda)
+            db.add(
+                ProjetoProfessor(
+                    projeto_id=novo_projeto.id,
+                    professor_id=professor.id,
+                    papel_no_projeto="orientador"
+                )
+            )
+
+            # 3. Cria a intenção de reunião com horário provisório válido.
+            data_hora_provisoria = datetime(2026, 1, 1, 0, 0, 0)
             nova_reuniao = Reuniao(
                 projeto_id=novo_projeto.id,
                 professor_id=professor.id,
                 ciclo_avaliacao=linha.ciclo_avaliacao,
-                # Usando datas fictícias provisórias só para o banco não reclamar por enquanto
-                # Nosso algoritmo inteligente substituirá isso depois!
-                data_hora_inicio="2026-01-01 00:00:00", 
-                data_hora_fim="2026-01-01 00:00:00",
+                data_hora_inicio=data_hora_provisoria,
+                data_hora_fim=data_hora_provisoria + timedelta(hours=1),
                 status="Pendente de Agendamento"
             )
             db.add(nova_reuniao)

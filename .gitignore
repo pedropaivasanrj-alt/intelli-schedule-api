@@ -21,3 +21,6 @@ Thumbs.db
 # Banco local / arquivos temporários
 *.sqlite3
 *.db
+data/*.log
+data/test_*.sqlite3
+frontend/.next/

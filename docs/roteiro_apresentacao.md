@@ -38,6 +38,7 @@ O seed cria os seguintes dados:
 
 * Admin: [admin.demo@intelli.com.br](mailto:admin.demo@intelli.com.br) | senha: 123456
 * Coordenador: [coordenador.demo@intelli.com.br](mailto:coordenador.demo@intelli.com.br) | senha: 123456
+* Professor Ana: [ana.martins@intelli.com.br](mailto:ana.martins@intelli.com.br) | senha: 123456
 * Aluno Maria: [maria.oliveira@intelli.com.br](mailto:maria.oliveira@intelli.com.br) | senha: 123456
 * Aluno Lucas: [lucas.almeida@intelli.com.br](mailto:lucas.almeida@intelli.com.br) | senha: 123456
 

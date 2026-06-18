@@ -9,6 +9,7 @@ from app.models.projeto import Projeto
 from app.models.professor import Professor
 from app.models.disponibilidade import Disponibilidade
 from app.models.reuniao import Reuniao
+from app.models.projeto_professor import ProjetoProfessor
 
 
 DURACAO_PADRAO_REUNIAO_MINUTOS = 60
@@ -168,6 +169,19 @@ def agendar_reuniao_por_aluno(
             detail="Aluno não está vinculado a este projeto"
         )
 
+    professor_vinculado = (
+        db.query(ProjetoProfessor)
+        .filter(ProjetoProfessor.projeto_id == projeto_id)
+        .filter(ProjetoProfessor.professor_id == professor_id)
+        .first()
+    )
+
+    if not professor_vinculado:
+        raise HTTPException(
+            status_code=400,
+            detail="Professor não está vinculado a este projeto"
+        )
+
     reuniao_existente_projeto = (
         db.query(Reuniao)
         .filter(Reuniao.projeto_id == projeto_id)
@@ -252,8 +266,23 @@ def gerar_agendamentos_automaticos(db: Session):
             continue
 
         projeto_agendado = False
+        professor_ids_vinculados = [
+            vinculo.professor_id
+            for vinculo in projeto.professor_vinculos
+        ]
+
+        if not professor_ids_vinculados:
+            nao_agendados.append({
+                "projeto_id": projeto.id,
+                "projeto_nome": projeto.nome,
+                "motivo": "Projeto sem professor/orientador vinculado"
+            })
+            continue
 
         for disponibilidade in disponibilidades:
+            if disponibilidade.professor_id not in professor_ids_vinculados:
+                continue
+
             inicio_disponibilidade = datetime.combine(
                 disponibilidade.data,
                 disponibilidade.hora_inicio

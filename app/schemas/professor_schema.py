@@ -18,3 +18,7 @@ class ProfessorResponse(ProfessorBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProfessorAtivoUpdate(BaseModel):
+    ativo: bool

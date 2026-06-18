@@ -1,10 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.auth_dependencies import (
+    exigir_papeis,
+    obter_usuario_opcional,
+)
 from app.core.database import get_db
 from app.models.professor import Professor
 from app.models.usuario import Usuario
-from app.schemas.professor_schema import ProfessorCreate, ProfessorResponse
+from app.schemas.professor_schema import (
+    ProfessorAtivoUpdate,
+    ProfessorCreate,
+    ProfessorResponse,
+)
+from app.services.log_service import registrar_log
 
 router = APIRouter(
     prefix="/api/v1/professores",
@@ -15,7 +24,8 @@ router = APIRouter(
 @router.post("/", response_model=ProfessorResponse)
 def criar_professor(
     professor: ProfessorCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario | None = Depends(obter_usuario_opcional)
 ):
     professor_existente = (
         db.query(Professor)
@@ -72,6 +82,14 @@ def criar_professor(
     db.commit()
     db.refresh(novo_professor)
 
+    registrar_log(
+        db=db,
+        usuario=usuario_atual,
+        acao="criar",
+        recurso="professor",
+        detalhes=f"Professor criado: {novo_professor.email}"
+    )
+
     return novo_professor
 
 
@@ -96,6 +114,43 @@ def buscar_professor(
             status_code=404,
             detail="Professor não encontrado"
         )
+
+    return professor
+
+
+@router.patch("/{professor_id}/ativo", response_model=ProfessorResponse)
+def atualizar_ativo_professor(
+    professor_id: int,
+    dados: ProfessorAtivoUpdate,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(
+        exigir_papeis(["admin", "coordenador"])
+    )
+):
+    professor = (
+        db.query(Professor)
+        .filter(Professor.id == professor_id)
+        .first()
+    )
+
+    if not professor:
+        raise HTTPException(
+            status_code=404,
+            detail="Professor não encontrado"
+        )
+
+    professor.ativo = dados.ativo
+
+    db.commit()
+    db.refresh(professor)
+
+    registrar_log(
+        db=db,
+        usuario=usuario_atual,
+        acao="ativar" if dados.ativo else "desativar",
+        recurso="professor",
+        detalhes=f"Professor: {professor.email}"
+    )
 
     return professor
 
