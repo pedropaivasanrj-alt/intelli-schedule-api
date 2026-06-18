@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IntelliSchedule</title>
+  <link rel="stylesheet" href="/app/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">IS</div>
+        <div>
+          <strong>IntelliSchedule</strong>
+          <span>Agendamentos acadêmicos</span>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <span>Perfil atual</span>
+        <strong id="current-user-name">Modo apresentação</strong>
+        <small id="current-user-role">Coordenação acadêmica</small>
+      </div>
+
+      <nav class="menu" aria-label="Menu principal">
+        <button class="active" data-page="dashboard">Dashboard</button>
+        <button data-page="professores">Professores</button>
+        <button data-page="alunos">Alunos</button>
+        <button data-page="projetos">Projetos</button>
+        <button data-page="disponibilidades">Disponibilidades</button>
+        <button data-page="agendamentos">Agendamentos</button>
+        <button data-page="historico">Histórico</button>
+      </nav>
+
+      <div class="sidebar-note">
+        Interface MVP conectada à API FastAPI. Use com os dados de demonstração do seed.
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Painel institucional</p>
+          <h1 id="page-title">Dashboard da Coordenação</h1>
+          <p id="page-subtitle">Visão geral para acompanhamento de professores, alunos, projetos e reuniões.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="secondary" id="refresh-button">Atualizar dados</button>
+          <button id="open-agendamento-button">Novo agendamento</button>
+        </div>
+      </header>
+
+      <section class="notice" id="app-message" hidden></section>
+
+      <section class="page active" id="dashboard">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">MVP aplicável</p>
+            <h2>Gestão de reuniões acadêmicas em um único fluxo</h2>
+            <p>Cadastre professores, alunos, projetos, disponibilidades por data específica e agende reuniões com validação automática de conflitos.</p>
+          </div>
+          <div class="hero-box">
+            <span>Status da API</span>
+            <strong id="api-status">Verificando...</strong>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <article class="metric-card"><span>Professores</span><strong id="metric-professores">0</strong><small>ativos e cadastrados</small></article>
+          <article class="metric-card"><span>Alunos</span><strong id="metric-alunos">0</strong><small>vinculáveis a projetos</small></article>
+          <article class="metric-card"><span>Projetos</span><strong id="metric-projetos">0</strong><small>com resumo obrigatório</small></article>
+          <article class="metric-card"><span>Reuniões</span><strong id="metric-reunioes">0</strong><small>agenda consolidada</small></article>
+        </div>
+
+        <div class="two-columns">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Próximos agendamentos</h3>
+                <p>Reuniões ordenadas por data e horário.</p>
+              </div>
+            </div>
+            <div id="dashboard-agenda" class="timeline"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Projetos em acompanhamento</h3>
+                <p>Resumo rápido para a coordenação.</p>
+              </div>
+            </div>
+            <div id="dashboard-projetos" class="stack"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="professores">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Cadastrar professor</h3>
+            <p>Crie professores/orientadores para vincular aos projetos.</p>
+            <form id="professor-form" class="form-grid">
+              <label>Nome completo<input name="nome" required placeholder="Ex.: Ana Martins" /></label>
+              <label>E-mail<input name="email" type="email" required placeholder="ana@instituicao.edu.br" /></label>
+              <label>Departamento<input name="departamento" placeholder="Computação" /></label>
+              <button type="submit">Cadastrar professor</button>
+            </form>
+          </article>
+          <article class="panel wide-table">
+            <h3>Professores cadastrados</h3>
+            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Departamento</th><th>Status</th></tr></thead><tbody id="professores-table"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="alunos">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Cadastrar aluno</h3>
+            <p>Cadastre alunos para vincular aos projetos e agendamentos.</p>
+            <form id="aluno-form" class="form-grid">
+              <label>Nome completo<input name="nome" required placeholder="Ex.: Maria Oliveira" /></label>
+              <label>E-mail<input name="email" type="email" required placeholder="maria@aluno.edu.br" /></label>
+              <label>Matrícula<input name="matricula" placeholder="202601234" /></label>
+              <label>Curso<input name="curso" placeholder="Ciência da Computação" /></label>
+              <button type="submit">Cadastrar aluno</button>
+            </form>
+          </article>
+          <article class="panel wide-table">
+            <h3>Alunos cadastrados</h3>
+            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Matrícula</th><th>Curso</th></tr></thead><tbody id="alunos-table"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="projetos">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Novo projeto</h3>
+            <p>Todo projeto precisa de resumo, características e pelo menos um orientador.</p>
+            <form id="projeto-form" class="form-grid">
+              <label>Nome do projeto<input name="nome" required placeholder="Ex.: Plataforma de Agendamento Acadêmico" /></label>
+              <label>Resumo obrigatório<textarea name="resumo" required placeholder="Resumo do projeto"></textarea></label>
+              <label>Características<textarea name="caracteristicas" required placeholder="Características principais"></textarea></label>
+              <label>Objetivo<textarea name="objetivo" placeholder="Objetivo do projeto"></textarea></label>
+              <label>Orientador<select name="orientador_id" required id="projeto-orientador-select"></select></label>
+              <label>Aluno vinculado<select name="aluno_id" id="projeto-aluno-select"></select></label>
+              <button type="submit">Cadastrar projeto</button>
+            </form>
+          </article>
+          <article class="panel wide-table">
+            <h3>Projetos cadastrados</h3>
+            <div class="table-wrap"><table><thead><tr><th>Projeto</th><th>Orientador</th><th>Alunos</th><th>Status</th></tr></thead><tbody id="projetos-table"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="disponibilidades">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Cadastrar disponibilidade</h3>
+            <p>Disponibilidade por data específica, com início e fim.</p>
+            <form id="disponibilidade-form" class="form-grid">
+              <label>Professor<select name="professor_id" required id="disponibilidade-professor-select"></select></label>
+              <label>Data específica<input name="data" type="date" required /></label>
+              <div class="inline-fields">
+                <label>Hora início<input name="hora_inicio" type="time" required /></label>
+                <label>Hora fim<input name="hora_fim" type="time" required /></label>
+              </div>
+              <button type="submit">Salvar disponibilidade</button>
+            </form>
+          </article>
+          <article class="panel wide-table">
+            <h3>Disponibilidades cadastradas</h3>
+            <div class="table-wrap"><table><thead><tr><th>Professor</th><th>Data</th><th>Horário</th></tr></thead><tbody id="disponibilidades-table"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="agendamentos">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Agendar reunião</h3>
+            <p>O sistema valida vínculo com projeto, disponibilidade e conflito de horário.</p>
+            <form id="agendamento-form" class="form-grid">
+              <label>Aluno<select name="aluno_id" required id="agendamento-aluno-select"></select></label>
+              <label>Projeto<select name="projeto_id" required id="agendamento-projeto-select"></select></label>
+              <label>Professor<select name="professor_id" required id="agendamento-professor-select"></select></label>
+              <div class="inline-fields">
+                <label>Data<input name="data" type="date" required /></label>
+                <label>Horário<input name="hora" type="time" required /></label>
+              </div>
+              <button type="submit">Verificar e agendar</button>
+            </form>
+          </article>
+          <article class="panel wide-table">
+            <h3>Agenda completa</h3>
+            <div class="table-wrap"><table><thead><tr><th>Projeto</th><th>Professor</th><th>Aluno</th><th>Início</th><th>Status</th></tr></thead><tbody id="agenda-table"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="historico">
+        <div class="two-columns">
+          <article class="panel">
+            <h3>Registrar histórico</h3>
+            <p>Registro de reuniões por projeto. Requer login de professor, coordenador ou admin.</p>
+            <form id="login-form" class="form-grid compact-form">
+              <h4>Login rápido</h4>
+              <label>E-mail<input name="email" type="email" value="coordenador.demo@intelli.com.br" /></label>
+              <label>Senha<input name="senha" type="password" value="123456" /></label>
+              <button type="submit" class="secondary">Entrar</button>
+            </form>
+            <hr />
+            <form id="historico-form" class="form-grid">
+              <label>Projeto<select name="projeto_id" required id="historico-projeto-select"></select></label>
+              <label>Título<input name="titulo" required placeholder="Ex.: Reunião de alinhamento" /></label>
+              <label>Resumo<textarea name="resumo" required placeholder="Resumo da reunião"></textarea></label>
+              <label>Decisões<textarea name="decisoes" placeholder="Decisões tomadas"></textarea></label>
+              <label>Próximos passos<textarea name="proximos_passos" placeholder="Próximas ações"></textarea></label>
+              <button type="submit">Salvar histórico</button>
+            </form>
+          </article>
+          <article class="panel">
+            <h3>Como demonstrar</h3>
+            <div class="stack">
+              <div class="mini-card"><strong>1. Rode o seed</strong><span>Use os dados demonstrativos para evitar cadastro manual longo.</span></div>
+              <div class="mini-card"><strong>2. Abra /app</strong><span>Mostre o dashboard e navegue pelas telas.</span></div>
+              <div class="mini-card"><strong>3. Cadastre uma disponibilidade</strong><span>Use uma data específica e horário válido.</span></div>
+              <div class="mini-card"><strong>4. Faça um agendamento</strong><span>Mostre a validação automática do sistema.</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/app/app.js"></script>
+</body>
+</html>
