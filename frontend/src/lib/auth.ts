@@ -13,7 +13,7 @@ export type AuthData = {
   usuario: UsuarioAutenticado;
 };
 
-const AUTH_STORAGE_KEY = "intelli_schedule_auth";
+export const AUTH_STORAGE_KEY = "intelli_schedule_auth";
 
 export function salvarAuth(auth: AuthData) {
   if (typeof window === "undefined") return;
@@ -35,6 +35,28 @@ export function obterAuth(): AuthData | null {
   }
 }
 
+
+export function limparAuth() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export function destinoPorPapel(papel?: string) {
+  if (papel === "admin" || papel === "coordenador") {
+    return "/dashboard";
+  }
+
+  if (papel === "professor") {
+    return "/professor";
+  }
+
+  if (papel === "aluno") {
+    return "/aluno";
+  }
+
+  return "/projetos";
+}
+
 export function obterToken(): string | null {
   return obterAuth()?.access_token ?? null;
 }
@@ -53,25 +75,10 @@ export function usuarioTemPapel(papeisPermitidos: PapelUsuario[]) {
 
 export function sair() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(AUTH_STORAGE_KEY);
+  limparAuth();
   window.location.href = "/login";
 }
 
 export function redirecionarPorPapel(usuario: UsuarioAutenticado) {
-  if (usuario.papel === "admin" || usuario.papel === "coordenador") {
-    window.location.href = "/dashboard";
-    return;
-  }
-
-  if (usuario.papel === "professor") {
-    window.location.href = "/professor";
-    return;
-  }
-
-  if (usuario.papel === "aluno") {
-    window.location.href = "/aluno";
-    return;
-  }
-
-  window.location.href = "/login";
+  window.location.href = destinoPorPapel(usuario.papel);
 }

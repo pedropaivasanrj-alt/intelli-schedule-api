@@ -1,4 +1,4 @@
-import { obterToken } from "./auth";
+import { limparAuth, obterToken } from "./auth";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -6,6 +6,24 @@ export const API_URL =
 type ApiOptions = RequestInit & {
   auth?: boolean;
 };
+
+function redirecionarAcessoNegado(status: number) {
+  if (typeof window === "undefined") return;
+
+  const destinoAtual = `${window.location.pathname}${window.location.search}`;
+
+  if (status === 401) {
+    limparAuth();
+    window.location.href = `/login?redirect=${encodeURIComponent(destinoAtual)}`;
+    return;
+  }
+
+  if (status === 403) {
+    window.location.href = `/acesso-negado?from=${encodeURIComponent(
+      destinoAtual
+    )}`;
+  }
+}
 
 export async function apiFetch<T>(
   endpoint: string,
@@ -42,7 +60,15 @@ export async function apiFetch<T>(
       mensagem = response.statusText;
     }
 
+    if (response.status === 401 || response.status === 403) {
+      redirecionarAcessoNegado(response.status);
+    }
+
     throw new Error(mensagem);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();

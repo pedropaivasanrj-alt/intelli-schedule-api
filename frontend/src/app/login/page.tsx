@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck, Lock, Mail, ArrowRight } from "lucide-react";
+import { CalendarCheck, Lock, Mail, ArrowRight, KeyRound } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { AuthData, salvarAuth } from "@/lib/auth";
 
@@ -27,6 +27,10 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("123456");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+  const [modoRecuperacao, setModoRecuperacao] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState("");
+  const [mensagem, setMensagem] = useState("");
 
   async function fazerLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,7 +64,43 @@ window.location.replace(destino);
       setCarregando(false);
     }
   }
+  
+  async function recuperarSenha(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
+  setCarregando(true);
+  setErro("");
+  setMensagem("");
+
+  try {
+    const resposta = await apiFetch<{ message: string }>(
+      "/api/v1/auth/recuperar-senha",
+      {
+        method: "POST",
+        auth: false,
+        body: JSON.stringify({
+          email,
+          nova_senha: novaSenha,
+          confirmar_nova_senha: confirmarNovaSenha,
+        }),
+      }
+    );
+
+    setMensagem(resposta.message);
+    setSenha(novaSenha);
+    setNovaSenha("");
+    setConfirmarNovaSenha("");
+    setModoRecuperacao(false);
+  } catch (error) {
+    setErro(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível recuperar a senha"
+    );
+  } finally {
+    setCarregando(false);
+  }
+}
   return (
     <main className="min-h-screen bg-[#08112B] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(47,57,224,0.45),_transparent_30%),radial-gradient(circle_at_80%_20%,_rgba(93,43,225,0.35),_transparent_30%),radial-gradient(circle_at_50%_90%,_rgba(43,167,225,0.35),_transparent_30%)]" />
@@ -118,7 +158,7 @@ window.location.replace(destino);
         </div>
 
         <form
-          onSubmit={fazerLogin}
+          onSubmit={modoRecuperacao ? recuperarSenha : fazerLogin}
           className="mt-12 rounded-[2.2rem] border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl lg:mt-0"
         >
           <div className="rounded-[1.7rem] bg-[#0E1738]/80 p-6">
@@ -127,8 +167,9 @@ window.location.replace(destino);
                 Login
               </p>
               <h3 className="mt-2 text-3xl font-black">
-                Entrar no sistema
+                {modoRecuperacao ? "Recuperar senha" : "Entrar no sistema"}
               </h3>
+              
             </div>
 
             <label className="mb-2 block text-sm text-white/70">
@@ -158,24 +199,76 @@ window.location.replace(destino);
                 type="password"
               />
             </div>
+            {modoRecuperacao && (
+              <>
+                <label className="mb-2 block text-sm text-white/70">
+                  Nova senha
+                </label>
+                <div className="mb-5 flex items-center gap-3 rounded-2xl border             border-white/10 bg-white/10 px-4 py-3">
+                  <KeyRound size={18} className="text-white/60" />
+                  <input
+                    value={novaSenha}
+                    onChange={(event) => setNovaSenha(event.target.value)}
+                    className="w-full bg-transparent text-white outline-none            placeholder:text-white/35"
+                    placeholder="Digite a nova senha"
+                    type="password"
+                  />
+                </div>
 
+                <label className="mb-2 block text-sm text-white/70">
+                  Confirmar nova senha
+               </label>
+               <div className="mb-6 flex items-center gap-3 rounded-2xl border            border-white/10 bg-white/10 px-4 py-3">
+                  <Lock size={18} className="text-white/60" />
+                  <input
+                    value={confirmarNovaSenha}
+                    onChange={(event) => setConfirmarNovaSenha(event.target.value)}
+                   className="w-full bg-transparent text-white outline-none           placeholder:text-white/35"
+                    placeholder="Confirme a nova senha"
+                    type="password"
+                  />
+                </div>
+              </>
+            )}
             {erro && (
               <div className="mb-5 rounded-2xl border border-red-300/20 bg-red-300/10 p-4 text-sm text-red-100">
                 {erro}
               </div>
             )}
-
+            {mensagem && (
+              <div className="mb-5 rounded-2xl border border-emerald-300/20              bg-emerald-300/10 p-4 text-sm text-emerald-100">
+                {mensagem}
+             </div>
+            )}             
             <button
               disabled={carregando}
               className="group flex w-full items-center justify-center gap-3 rounded-full bg-white px-6 py-4 font-bold text-[#2F39E0] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {carregando ? "Entrando..." : "Entrar"}
+              {carregando
+                ? modoRecuperacao
+                  ? "Redefinindo..."
+                  : "Entrando..."
+                : modoRecuperacao
+                  ? "Redefinir senha"
+                  : "Entrar"}
               <ArrowRight
                 size={18}
                 className="transition group-hover:translate-x-1"
               />
             </button>
-
+            <button
+              type="button"
+              onClick={() => {
+                setModoRecuperacao(!modoRecuperacao);
+                setErro("");
+                setMensagem("");
+              }}
+             className="mt-4 w-full text-center text-sm font-semibold text-white/70           transition hover:text-white"
+            >
+              {modoRecuperacao
+                ? "Voltar para o login"
+                : "Esqueci minha senha"}
+            </button>
             <p className="mt-5 text-center text-sm text-white/50">
               Senha dos usuários demo: 123456
             </p>
