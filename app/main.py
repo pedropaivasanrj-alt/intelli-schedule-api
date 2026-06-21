@@ -70,6 +70,5 @@ if STATIC_DIR.exists():
 @app.get("/")
 def health_check():
     return {
-        "status": "ok",
-        "app": "/app"
+        "status": "ok"
     }
