@@ -17,6 +17,7 @@ from app.models.projeto_aluno import projeto_alunos
 from app.models.projeto_professor import ProjetoProfessor
 from app.models.reuniao import Reuniao
 from app.models.usuario import Usuario
+from app.models.periodo_agendamento import PeriodoAgendamento
 
 from app.routers import (
     agendamentos_router,
@@ -29,6 +30,7 @@ from app.routers import (
     reunioes_router,
     upload_router,
     usuarios_router,
+    periodo_agendamento_router
 )
 
 Base.metadata.create_all(bind=engine)
@@ -57,6 +59,7 @@ app.include_router(usuarios_router.router)
 app.include_router(agendamentos_router.router)
 app.include_router(auth_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(periodo_agendamento_router.router)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 if STATIC_DIR.exists():

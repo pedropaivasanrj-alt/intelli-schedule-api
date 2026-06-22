@@ -1,8 +1,13 @@
+from datetime import date
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.core.database import SessionLocal
+from app.core.security import gerar_hash_senha
 from app.main import app
+from app.models.periodo_agendamento import PeriodoAgendamento
+from app.models.usuario import Usuario
 
 client = TestClient(app)
 
@@ -23,6 +28,53 @@ def projeto_payload(
         "status": "Ativo",
         "orientador_id": orientador_id
     }
+
+
+def criar_periodo_agendamento_para_teste(
+    data_inicio: date = date(2026, 6, 1),
+    data_fim: date = date(2026, 6, 30)
+):
+    db = SessionLocal()
+
+    try:
+        periodos_ativos = (
+            db.query(PeriodoAgendamento)
+            .filter(PeriodoAgendamento.ativo == True)
+            .all()
+        )
+
+        for periodo in periodos_ativos:
+            periodo.ativo = False
+
+        coordenador = Usuario(
+            nome="Coordenador Período Teste",
+            email=f"coord_periodo_{uuid4().hex[:8]}@teste.com",
+            senha_hash=gerar_hash_senha("123456"),
+            papel="coordenador",
+            ativo=True
+        )
+
+        db.add(coordenador)
+        db.commit()
+        db.refresh(coordenador)
+
+        periodo = PeriodoAgendamento(
+            titulo=f"Período Teste {uuid4().hex[:8]}",
+            descricao="Período aberto para teste de agendamento.",
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            ativo=True,
+            criado_por_id=coordenador.id
+        )
+
+        db.add(periodo)
+        db.commit()
+        db.refresh(periodo)
+
+        return periodo.id
+
+    finally:
+        db.close()
 
 
 def test_health_check():
@@ -479,6 +531,11 @@ def test_gerar_agendamento_automatico():
     assert response_professor.status_code == 200
     professor_id = response_professor.json()["id"]
 
+    criar_periodo_agendamento_para_teste(
+        data_inicio=date(2026, 6, 1),
+        data_fim=date(2026, 6, 30)
+    )
+
     response_disponibilidade = client.post(
         "/api/v1/disponibilidades/",
         json={
@@ -588,7 +645,7 @@ def test_aluno_realiza_agendamento():
             descricao_foco="Teste do fluxo de agendamento feito pelo aluno"
         )
     )
-
+    
     assert response_projeto.status_code == 200
     projeto_id = response_projeto.json()["id"]
 
@@ -597,6 +654,11 @@ def test_aluno_realiza_agendamento():
     )
 
     assert response_vinculo.status_code == 200
+
+    criar_periodo_agendamento_para_teste(
+        data_inicio=date(2026, 6, 1),
+        data_fim=date(2026, 6, 30)
+    )
 
     response_disponibilidade = client.post(
         "/api/v1/disponibilidades/",

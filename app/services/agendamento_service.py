@@ -10,9 +10,45 @@ from app.models.professor import Professor
 from app.models.disponibilidade import Disponibilidade
 from app.models.reuniao import Reuniao
 from app.models.projeto_professor import ProjetoProfessor
+from app.models.periodo_agendamento import PeriodoAgendamento
 
 
 DURACAO_PADRAO_REUNIAO_MINUTOS = 60
+def obter_periodo_ativo(db: Session):
+    return (
+        db.query(PeriodoAgendamento)
+        .filter(PeriodoAgendamento.ativo == True)
+        .first()
+    )
+
+
+def data_dentro_do_periodo(periodo: PeriodoAgendamento, inicio: datetime, fim: datetime) -> bool:
+    return (
+        periodo.data_inicio <= inicio.date() <= periodo.data_fim
+        and periodo.data_inicio <= fim.date() <= periodo.data_fim
+    )
+
+
+def validar_periodo_para_agendamento(
+    db: Session,
+    inicio: datetime,
+    fim: datetime
+):
+    periodo = obter_periodo_ativo(db)
+
+    if not periodo:
+        raise HTTPException(
+            status_code=400,
+            detail="Não existe período de agendamento ativo no momento"
+        )
+
+    if not data_dentro_do_periodo(periodo, inicio, fim):
+        raise HTTPException(
+            status_code=400,
+            detail="A data escolhida está fora do período definido pela coordenação"
+        )
+
+    return periodo
 
 
 def horario_tem_conflito(
@@ -55,7 +91,15 @@ def listar_horarios_disponiveis(
     data: date,
     professor_id: Optional[int] = None
 ):
-    query = (
+        periodo = obter_periodo_ativo(db)
+
+        if not periodo:
+            return []
+    
+        if data < periodo.data_inicio or data > periodo.data_fim:
+            return []
+        
+        query = (
         db.query(Disponibilidade)
         .join(Professor)
         .filter(Professor.ativo == True)
@@ -66,20 +110,20 @@ def listar_horarios_disponiveis(
         )
     )
 
-    if professor_id:
-        query = query.filter(Disponibilidade.professor_id == professor_id)
+        if professor_id:
+            query = query.filter(Disponibilidade.professor_id == professor_id)
 
-    disponibilidades = query.all()
+        disponibilidades = query.all()
 
-    horarios = []
-    duracao = timedelta(minutes=DURACAO_PADRAO_REUNIAO_MINUTOS)
+        horarios = []
+        duracao = timedelta(minutes=DURACAO_PADRAO_REUNIAO_MINUTOS)
 
-    for disponibilidade in disponibilidades:
-        professor = (
-            db.query(Professor)
-            .filter(Professor.id == disponibilidade.professor_id)
-            .first()
-        )
+        for disponibilidade in disponibilidades:
+            professor = (
+                db.query(Professor)
+                .filter(Professor.id == disponibilidade.professor_id)
+                .first()
+            )
 
         inicio_disponibilidade = datetime.combine(
             disponibilidade.data,
@@ -111,7 +155,7 @@ def listar_horarios_disponiveis(
 
             inicio_atual += duracao
 
-    return horarios
+        return horarios
 
 
 def agendar_reuniao_por_aluno(
@@ -196,6 +240,12 @@ def agendar_reuniao_por_aluno(
 
     duracao = timedelta(minutes=DURACAO_PADRAO_REUNIAO_MINUTOS)
     data_hora_fim = data_hora_inicio + duracao
+    
+    validar_periodo_para_agendamento(
+        db=db,
+        inicio=data_hora_inicio,
+        fim=data_hora_fim
+    )
 
     if not professor_tem_disponibilidade(
         db=db,

@@ -17,6 +17,7 @@ from app.models.projeto_professor import ProjetoProfessor
 from app.models.historico_reuniao import HistoricoReuniao
 from app.models.disponibilidade import Disponibilidade
 from app.models.reuniao import Reuniao
+from app.models.periodo_agendamento import PeriodoAgendamento
 
 from app.services.agendamento_service import agendar_reuniao_por_aluno
 
@@ -277,6 +278,56 @@ def agendar_demo_se_nao_existir(
     )
 
 
+def criar_periodo_agendamento_demo(db, usuario_criador):
+    periodos_ativos = (
+        db.query(PeriodoAgendamento)
+        .filter(PeriodoAgendamento.ativo == True)
+        .all()
+    )
+
+    for periodo in periodos_ativos:
+        periodo.ativo = False
+
+    titulo_demo = "[DEMO] Período oficial de reuniões"
+
+    periodo_demo = (
+        db.query(PeriodoAgendamento)
+        .filter(PeriodoAgendamento.titulo == titulo_demo)
+        .first()
+    )
+
+    if periodo_demo:
+        periodo_demo.descricao = (
+            "Período aberto pela coordenação para demonstração do fluxo de agendamento."
+        )
+        periodo_demo.data_inicio = date(2026, 6, 1)
+        periodo_demo.data_fim = date(2026, 6, 30)
+        periodo_demo.ativo = True
+        periodo_demo.criado_por_id = usuario_criador.id
+
+        db.commit()
+        db.refresh(periodo_demo)
+
+        return periodo_demo
+
+    periodo_demo = PeriodoAgendamento(
+        titulo=titulo_demo,
+        descricao=(
+            "Período aberto pela coordenação para demonstração do fluxo de agendamento."
+        ),
+        data_inicio=date(2026, 6, 1),
+        data_fim=date(2026, 6, 30),
+        ativo=True,
+        criado_por_id=usuario_criador.id
+    )
+
+    db.add(periodo_demo)
+    db.commit()
+    db.refresh(periodo_demo)
+
+    return periodo_demo
+
+
 def executar_seed():
     Base.metadata.create_all(bind=engine)
     aplicar_migracoes_minimas(engine)
@@ -299,6 +350,8 @@ def executar_seed():
             email="coordenador.demo@intelli.com.br",
             papel="coordenador"
         )
+
+        periodo_demo = criar_periodo_agendamento_demo(db, coordenador)
 
         usuario_prof_ana = buscar_ou_criar_usuario(
             db,
@@ -384,7 +437,10 @@ def executar_seed():
             db,
             nome="[DEMO] Sistema de Controle de Estágios",
             resumo="Sistema para controlar estágios, orientações e entregas acadêmicas.",
-            caracteristicas="Cadastro de estágios, acompanhamento por professor, agenda de checkpoints e indicadores.",
+            caracteristicas=(
+                "Cadastro de estágios, acompanhamento por professor, "
+                "agenda de checkpoints e indicadores."
+            ),
             objetivo="Organizar o acompanhamento acadêmico dos estágios com rastreabilidade.",
             alunos_envolvidos="Maria Oliveira, Pedro Lima",
             descricao_foco="Avaliação da arquitetura e organização do sistema"
@@ -394,7 +450,10 @@ def executar_seed():
             db,
             nome="[DEMO] Plataforma de Agendamento Acadêmico",
             resumo="Plataforma para agendar reuniões entre alunos, professores e coordenação.",
-            caracteristicas="Disponibilidades por professor, agendamento por aluno, prevenção de conflitos e agenda consolidada.",
+            caracteristicas=(
+                "Disponibilidades por professor, agendamento por aluno, "
+                "prevenção de conflitos e agenda consolidada."
+            ),
             objetivo="Reduzir o trabalho manual da coordenação no processo de agendamento.",
             alunos_envolvidos="Lucas Almeida",
             descricao_foco="Avaliação da API e motor de agendamento"
@@ -404,7 +463,10 @@ def executar_seed():
             db,
             nome="[DEMO] Dashboard de Indicadores Educacionais",
             resumo="Dashboard para acompanhar projetos, reuniões e pendências acadêmicas.",
-            caracteristicas="Indicadores gerenciais, cards por projeto, histórico de reuniões e status acadêmico.",
+            caracteristicas=(
+                "Indicadores gerenciais, cards por projeto, histórico de reuniões "
+                "e status acadêmico."
+            ),
             objetivo="Dar visibilidade executiva ao andamento dos projetos acadêmicos.",
             alunos_envolvidos="Maria Oliveira, Lucas Almeida",
             descricao_foco="Avaliação de dados, visualização e relatórios"
@@ -473,7 +535,9 @@ def executar_seed():
         print(f"Admin: {admin.email} | senha: 123456")
         print(f"Coordenador: {coordenador.email} | senha: 123456")
         print(f"Professor Ana: {prof_ana.email} | senha: 123456")
+        print(f"Professor Carlos: {prof_carlos.email} | senha: 123456")
         print(f"Aluno Maria: {maria.email} | senha: 123456")
+        print(f"Aluno Pedro: {pedro.email} | senha: 123456")
         print(f"Aluno Lucas: {lucas.email} | senha: 123456")
         print("")
         print(f"Professores criados: {prof_ana.nome}, {prof_carlos.nome}")
@@ -485,6 +549,8 @@ def executar_seed():
             "Agendamentos criados pelo fluxo do aluno: "
             f"{len(agendamentos_criados)}"
         )
+        print(f"Período de agendamento ativo: {periodo_demo.titulo}")
+        print(f"Período: {periodo_demo.data_inicio} até {periodo_demo.data_fim}")
 
     finally:
         db.close()
