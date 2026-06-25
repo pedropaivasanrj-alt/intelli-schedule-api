@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
+  CalendarRange,
   GraduationCap,
   Layers3,
   Link2,
@@ -11,45 +11,23 @@ import {
   Users,
 } from "lucide-react";
 import { obterUsuario, sair, UsuarioAutenticado } from "@/lib/auth";
+import {
+  podeGerenciarAlunos,
+  podeGerenciarPeriodos,
+  podeGerenciarProfessores,
+  podeGerenciarProjetos,
+  podeGerenciarUsuarios,
+  podeGerenciarVinculos,
+  podeVerCadastros,
+} from "@/lib/permissions";
 
-const modulos = [
-  {
-    titulo: "Usuários",
-    descricao: "Controle de acessos, coordenadores e logs administrativos.",
-    href: "/cadastros/usuarios",
-    icon: ShieldCheck,
-  },
-  {
-    titulo: "Professores",
-    descricao: "Cadastro, ativação e dados acadêmicos dos professores.",
-    href: "/cadastros/professores",
-    icon: GraduationCap,
-  },
-  {
-    titulo: "Alunos",
-    descricao: "Cadastro, ativação, matrícula e dados dos estudantes.",
-    href: "/cadastros/alunos",
-    icon: Users,
-  },
-  {
-    titulo: "Projetos",
-    descricao: "Projetos com resumo, características e orientador obrigatório.",
-    href: "/cadastros/projetos",
-    icon: Layers3,
-  },
-  {
-    titulo: "Disponibilidades",
-    descricao: "Janelas de horário disponíveis para reuniões acadêmicas.",
-    href: "/cadastros/disponibilidades",
-    icon: CalendarDays,
-  },
-  {
-    titulo: "Vínculos",
-    descricao: "Alunos, orientadores e avaliadores conectados aos projetos.",
-    href: "/cadastros/projetos",
-    icon: Link2,
-  },
-];
+type ModuloCadastro = {
+  titulo: string;
+  descricao: string;
+  href: string;
+  icon: React.ElementType;
+  permitido: boolean;
+};
 
 export default function CadastrosPage() {
   const [usuario] = useState<UsuarioAutenticado | null>(() => obterUsuario());
@@ -60,10 +38,64 @@ export default function CadastrosPage() {
       return;
     }
 
-    if (usuario.papel !== "admin" && usuario.papel !== "coordenador") {
-      window.location.replace("/projetos");
+    if (!podeVerCadastros(usuario)) {
+      window.location.replace("/acesso-negado");
+      return;
     }
   }, [usuario]);
+
+  const modulos = useMemo<ModuloCadastro[]>(() => {
+    return [
+      {
+        titulo: "Usuários",
+        descricao:
+          "Controle de acessos e perfis administrativos. Disponível apenas para ADM.",
+        href: "/cadastros/usuarios",
+        icon: ShieldCheck,
+        permitido: podeGerenciarUsuarios(usuario),
+      },
+      {
+        titulo: "Professores",
+        descricao: "Cadastro, ativação e dados acadêmicos dos professores.",
+        href: "/cadastros/professores",
+        icon: GraduationCap,
+        permitido: podeGerenciarProfessores(usuario),
+      },
+      {
+        titulo: "Alunos",
+        descricao: "Cadastro, matrícula, curso e dados dos estudantes.",
+        href: "/cadastros/alunos",
+        icon: Users,
+        permitido: podeGerenciarAlunos(usuario),
+      },
+      {
+        titulo: "Projetos",
+        descricao:
+          "Cadastro de projetos com resumo, características e orientador.",
+        href: "/cadastros/projetos",
+        icon: Layers3,
+        permitido: podeGerenciarProjetos(usuario),
+      },
+      {
+        titulo: "Períodos",
+        descricao:
+          "Defina a janela oficial em que professores podem abrir horários e alunos podem agendar.",
+        href: "/periodos",
+        icon: CalendarRange,
+        permitido: podeGerenciarPeriodos(usuario),
+      },
+      {
+        titulo: "Vínculos",
+        descricao:
+          "Adicione ou remova alunos e orientadores em projetos já existentes.",
+        href: "/cadastros/vinculos",
+        icon: Link2,
+        permitido: podeGerenciarVinculos(usuario),
+      },
+    ];
+  }, [usuario]);
+
+  const modulosPermitidos = modulos.filter((modulo) => modulo.permitido);
 
   return (
     <main className="min-h-screen bg-[#08112B] px-6 py-8 text-white md:px-14 lg:px-20">
@@ -75,6 +107,9 @@ export default function CadastrosPage() {
           <h1 className="mt-2 text-3xl font-black md:text-5xl">
             Central administrativa
           </h1>
+          <p className="mt-3 max-w-2xl text-white/60">
+            Você está vendo apenas os módulos permitidos para o seu perfil.
+          </p>
         </div>
 
         <button
@@ -87,7 +122,7 @@ export default function CadastrosPage() {
       </nav>
 
       <section className="mx-auto grid max-w-7xl gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {modulos.map((modulo) => {
+        {modulosPermitidos.map((modulo) => {
           const Icon = modulo.icon;
 
           return (
@@ -99,10 +134,13 @@ export default function CadastrosPage() {
               <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-[1rem] bg-white text-[#2F39E0]">
                 <Icon size={24} />
               </div>
+
               <h2 className="text-2xl font-black">{modulo.titulo}</h2>
+
               <p className="mt-3 min-h-[72px] leading-7 text-white/65">
                 {modulo.descricao}
               </p>
+
               <span className="mt-6 inline-flex rounded-full bg-white px-5 py-3 font-bold text-[#2F39E0]">
                 Abrir módulo
               </span>
