@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.auth_dependencies import obter_usuario_atual, obter_usuario_opcional
@@ -13,7 +13,6 @@ from app.models.usuario import Usuario
 from app.schemas.projeto_schema import (
     HistoricoReuniaoCreate,
     HistoricoReuniaoResponse,
-    HistoricoReuniaoUpdate,
     ProjetoCreate,
     ProjetoProfessorResponse,
     ProjetoProfessorVinculoCreate,
@@ -74,6 +73,14 @@ def validar_gestor_ou_legacy(usuario: Usuario | None):
     if usuario is None:
         return
 
+    if usuario.papel not in ["admin", "coordenador"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas admin ou coordenador podem executar esta ação"
+        )
+
+
+def validar_admin_ou_coordenador(usuario: Usuario):
     if usuario.papel not in ["admin", "coordenador"]:
         raise HTTPException(
             status_code=403,
@@ -159,6 +166,22 @@ def validar_edicao_projeto(db: Session, usuario: Usuario, projeto: Projeto):
             status_code=403,
             detail="Usuário não pode editar este projeto"
         )
+
+
+def contar_reunioes_do_projeto(db: Session, projeto_id: int):
+    return (
+        db.query(Reuniao)
+        .filter(Reuniao.projeto_id == projeto_id)
+        .count()
+    )
+
+
+def contar_historicos_do_projeto(db: Session, projeto_id: int):
+    return (
+        db.query(HistoricoReuniao)
+        .filter(HistoricoReuniao.projeto_id == projeto_id)
+        .count()
+    )
 
 
 def formatar_projeto(projeto: Projeto):
@@ -323,14 +346,119 @@ def atualizar_projeto(
     return formatar_projeto(projeto)
 
 
+@router.patch("/{projeto_id}/desativar", response_model=ProjetoResponse)
+def desativar_projeto(
+    projeto_id: int,
+    motivo: str | None = Body(default=None, embed=True),
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(obter_usuario_atual),
+):
+    validar_admin_ou_coordenador(usuario_atual)
+
+    projeto = buscar_projeto_ou_404(db, projeto_id)
+
+    reunioes_do_projeto = contar_reunioes_do_projeto(db, projeto_id)
+
+    motivo_limpo = motivo.strip() if motivo else ""
+
+    if reunioes_do_projeto > 0 and not motivo_limpo:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este projeto possui reuniões vinculadas. "
+                "Informe um motivo para desativar o projeto."
+            )
+        )
+
+    if not motivo_limpo:
+        motivo_limpo = "Projeto desativado sem reuniões vinculadas."
+
+    projeto.status = "Inativo"
+
+    db.commit()
+    db.refresh(projeto)
+
+    registrar_log(
+        db=db,
+        usuario=usuario_atual,
+        acao="desativar",
+        recurso="projeto",
+        detalhes=(
+            f"Projeto desativado: {projeto.nome}. "
+            f"Reuniões vinculadas: {reunioes_do_projeto}. "
+            f"Motivo: {motivo_limpo}"
+        )
+    )
+
+    return formatar_projeto(projeto)
+
+
+@router.patch("/{projeto_id}/ativar", response_model=ProjetoResponse)
+def ativar_projeto(
+    projeto_id: int,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(obter_usuario_atual),
+):
+    validar_admin_ou_coordenador(usuario_atual)
+
+    projeto = buscar_projeto_ou_404(db, projeto_id)
+
+    projeto.status = "Ativo"
+
+    db.commit()
+    db.refresh(projeto)
+
+    registrar_log(
+        db=db,
+        usuario=usuario_atual,
+        acao="ativar",
+        recurso="projeto",
+        detalhes=f"Projeto ativado novamente: {projeto.nome}"
+    )
+
+    return formatar_projeto(projeto)
+
+
 @router.delete("/{projeto_id}")
 def deletar_projeto(
     projeto_id: int,
     db: Session = Depends(get_db),
-    usuario_atual: Usuario | None = Depends(obter_usuario_opcional)
+    usuario_atual: Usuario = Depends(obter_usuario_atual),
 ):
-    validar_gestor_ou_legacy(usuario_atual)
+    validar_admin_ou_coordenador(usuario_atual)
+
     projeto = buscar_projeto_ou_404(db, projeto_id)
+
+    reunioes_do_projeto = contar_reunioes_do_projeto(db, projeto_id)
+    historicos_do_projeto = contar_historicos_do_projeto(db, projeto_id)
+
+    if reunioes_do_projeto > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este projeto possui reuniões vinculadas. "
+                "Por segurança, desative o projeto em vez de apagar."
+            )
+        )
+
+    if historicos_do_projeto > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este projeto possui histórico vinculado. "
+                "Por segurança, desative o projeto em vez de apagar."
+            )
+        )
+
+    nome_projeto = projeto.nome
+
+    projeto.alunos.clear()
+
+    (
+        db.query(ProjetoProfessor)
+        .filter(ProjetoProfessor.projeto_id == projeto_id)
+        .delete(synchronize_session=False)
+    )
 
     db.delete(projeto)
     db.commit()
@@ -338,12 +466,14 @@ def deletar_projeto(
     registrar_log(
         db=db,
         usuario=usuario_atual,
-        acao="remover",
+        acao="apagar",
         recurso="projeto",
-        detalhes=f"Projeto removido: {projeto.nome}"
+        detalhes=f"Projeto apagado: {nome_projeto}"
     )
 
-    return {"message": "Projeto deletado com sucesso"}
+    return {
+        "message": "Projeto apagado com sucesso"
+    }
 
 
 @router.post(
@@ -632,50 +762,6 @@ def criar_historico_projeto(
     return formatar_historico(historico)
 
 
-@router.put(
-    "/{projeto_id}/historico/{historico_id}",
-    response_model=HistoricoReuniaoResponse
-)
-def atualizar_historico_projeto(
-    projeto_id: int,
-    historico_id: int,
-    dados: HistoricoReuniaoUpdate,
-    db: Session = Depends(get_db),
-    usuario_atual: Usuario = Depends(obter_usuario_atual)
-):
-    projeto = buscar_projeto_ou_404(db, projeto_id)
-    validar_edicao_projeto(db, usuario_atual, projeto)
-
-    historico = (
-        db.query(HistoricoReuniao)
-        .filter(HistoricoReuniao.id == historico_id)
-        .filter(HistoricoReuniao.projeto_id == projeto_id)
-        .first()
-    )
-
-    if not historico:
-        raise HTTPException(
-            status_code=404,
-            detail="Histórico não encontrado"
-        )
-
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
-        setattr(historico, campo, valor)
-
-    db.commit()
-    db.refresh(historico)
-
-    registrar_log(
-        db=db,
-        usuario=usuario_atual,
-        acao="editar",
-        recurso="historico_reuniao",
-        detalhes=f"Histórico editado no projeto {projeto.nome}"
-    )
-
-    return formatar_historico(historico)
-
-
 @router.delete("/{projeto_id}/historico/{historico_id}")
 def deletar_historico_projeto(
     projeto_id: int,
@@ -683,11 +769,7 @@ def deletar_historico_projeto(
     db: Session = Depends(get_db),
     usuario_atual: Usuario = Depends(obter_usuario_atual)
 ):
-    if usuario_atual.papel not in ["admin", "coordenador"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Apenas admin ou coordenador podem remover históricos"
-        )
+    validar_admin_ou_coordenador(usuario_atual)
 
     projeto = buscar_projeto_ou_404(db, projeto_id)
 

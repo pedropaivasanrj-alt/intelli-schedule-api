@@ -6,6 +6,7 @@ import {
   LogOut,
   Plus,
   Search,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -33,7 +34,7 @@ type ProjetoProfessor = {
   professor_id: number;
   professor_nome?: string;
   professor_email?: string;
-  papel_no_projeto?: string;
+  papel_no_projeto?: string | null;
 };
 
 type Projeto = {
@@ -239,6 +240,92 @@ export default function ProjetosCadastroPage() {
       );
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function desativarProjeto(projeto: Projeto) {
+  const motivo = window.prompt(
+    `Informe o motivo da desativação do projeto "${projeto.nome}":`
+  );
+
+  if (motivo === null) return;
+
+  const motivoTratado = motivo.trim();
+
+  if (!motivoTratado) {
+    setErro("Informe um motivo para desativar o projeto.");
+    return;
+  }
+
+  setErro("");
+  setMensagem("");
+
+  try {
+    await apiFetch(`/api/v1/projetos/${projeto.id}/desativar`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        motivo: motivoTratado,
+      }),
+    });
+
+    setMensagem("Projeto desativado com sucesso.");
+    await carregarDados();
+  } catch (error) {
+    setErro(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível desativar o projeto"
+    );
+  }
+}
+  async function ativarProjeto(projeto: Projeto) {
+  const confirmou = window.confirm(
+    `Deseja ativar novamente o projeto "${projeto.nome}"?`
+  );
+
+  if (!confirmou) return;
+
+  setErro("");
+  setMensagem("");
+
+  try {
+    await apiFetch(`/api/v1/projetos/${projeto.id}/ativar`, {
+      method: "PATCH",
+    });
+
+    setMensagem("Projeto ativado novamente com sucesso.");
+    await carregarDados();
+  } catch (error) {
+    setErro(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível ativar o projeto"
+    );
+  }
+}
+  async function apagarProjeto(projeto: Projeto) {
+    const confirmou = window.confirm(
+      `Tem certeza que deseja apagar o projeto "${projeto.nome}"? Essa ação não poderá ser desfeita.`
+    );
+
+    if (!confirmou) return;
+
+    setErro("");
+    setMensagem("");
+
+    try {
+      await apiFetch(`/api/v1/projetos/${projeto.id}`, {
+        method: "DELETE",
+      });
+
+      setMensagem("Projeto apagado com sucesso.");
+      await carregarDados();
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar o projeto. Se ele já possui vínculos ou reuniões, desative em vez de apagar."
+      );
     }
   }
 
@@ -452,9 +539,8 @@ export default function ProjetosCadastroPage() {
 
           <div className="grid gap-3">
             {projetos.map((projeto) => (
-              <a
+              <div
                 key={projeto.id}
-                href={`/projetos/${projeto.id}`}
                 className="rounded-[1.3rem] border border-white/10 bg-white/10 p-5 transition hover:bg-white/15"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -477,11 +563,52 @@ export default function ProjetosCadastroPage() {
                     </div>
                   </div>
 
-                  <span className="rounded-full bg-white px-4 py-2 text-sm font-bold text-[#2F39E0]">
+                  <span
+                    className={`rounded-full px-4 py-2 text-sm font-bold ${
+                      projeto.status?.toLowerCase() === "inativo"
+                        ? "bg-red-300/15 text-red-100"
+                        : "bg-white text-[#2F39E0]"
+                    }`}
+                  >
                     {projeto.status}
                   </span>
                 </div>
-              </a>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <a
+                    href={`/projetos/${projeto.id}`}
+                    className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-white"
+                  >
+                    Ver detalhes
+                  </a>
+
+                  {projeto.status?.toLowerCase() === "inativo" ? (
+                    <button
+                      type="button"
+                      onClick={() => ativarProjeto(projeto)}
+                      className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2                  text-sm font-bold text-emerald-100"
+                    >
+                      Ativar novamente
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => desativarProjeto(projeto)}
+                      className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-4 py-2                  text-sm font-bold text-yellow-100"
+                   >
+                      Desativar
+                    </button>
+                  )}                  
+                  <button
+                    type="button"
+                    onClick={() => apagarProjeto(projeto)}
+                    className="flex items-center gap-2 rounded-full border border-red-300/25 bg-red-300/10 px-4 py-2 text-sm font-bold text-red-100"
+                  >
+                    <Trash2 size={15} />
+                    Apagar
+                  </button>
+                </div>
+              </div>
             ))}
 
             {projetos.length === 0 && (
