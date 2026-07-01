@@ -1,23 +1,24 @@
+import os
 import sys
-from pathlib import Path
-from datetime import date, time, datetime
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT_DIR))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ROOT_DIR)
 
-from app.core.database import Base, SessionLocal, engine
-from app.core.schema_migrations import aplicar_migracoes_minimas
+from app.main import app  # noqa: F401
+
+from app.core.database import SessionLocal, engine, Base
 from app.core.security import gerar_hash_senha
 
 from app.models.usuario import Usuario
 from app.models.professor import Professor
 from app.models.aluno import Aluno
-from app.models.projeto import Projeto
-from app.models.projeto_professor import ProjetoProfessor
-from app.models.historico_reuniao import HistoricoReuniao
-from app.models.disponibilidade import Disponibilidade
-from app.models.reuniao import Reuniao
-from app.models.periodo_agendamento import PeriodoAgendamento
+
+import app.models.disponibilidade  # noqa: F401
+import app.models.projeto  # noqa: F401
+import app.models.projeto_aluno  # noqa: F401
+import app.models.reuniao  # noqa: F401
+import app.models.periodo_agendamento  # noqa: F401
+import app.models.projeto_professor  # noqa: F401
 
 from app.services.agendamento_service import agendar_reuniao_por_aluno
 
